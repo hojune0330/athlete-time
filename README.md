@@ -1,21 +1,100 @@
-```txt
-npm install
-npm run dev
-```
+# 애슬리트 타임 (Athlete Time) 🏃‍♂️
 
-```txt
-npm run deploy
-```
+## 프로젝트 개요
+- **이름**: 애슬리트 타임
+- **목표**: 한국 육상인들을 위한 실제 활성화된 커뮤니티 플랫폼
+- **핵심 기능**: 커뮤니티, 경기일정, 경기결과 (3가지만 집중)
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+## 🚀 현재 구현된 기능
 
-```txt
-npm run cf-typegen
-```
+### ✅ 1. 익명 커뮤니티 시스템
+- **7개 카테고리**: 초등부, 중등부, 고등부, 대학부, 실업부, 마스터즈, 자유게시판
+- **익명 게시**: 세션 토큰 기반 익명 시스템
+- **실시간 소통**: 댓글, 좋아요 기능
+- **현실적 데이터**: "서울고 800m 김형식 오빠 여자친구 있나요?" 같은 실제 육상인 소통 내용
 
-Pass the `CloudflareBindings` as generics when instantiation `Hono`:
+### ✅ 2. 실시간 경기 일정 관리
+- **대회 관리**: 전국체전, 춘계 중고연맹전 등 실제 대회
+- **종목 스케줄**: 각 종목별 세부 시간표
+- **실시간 상태**: "현재 6레인 선주", "현재 1.90m 진행 중" 등 라이브 업데이트
+- **진행 상황**: 예선, 준결승, 결승 단계별 관리
 
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
-```
+### ✅ 3. 경기 결과 및 기록 시스템
+- **실시간 결과**: 경기 종료 즉시 결과 입력
+- **개인 기록 관리**: 선수별 개인 최고 기록 추적
+- **랭킹 시스템**: 종목별, 연령별 순위표
+- **메달 집계**: 학교별/팀별 메달 현황
+- **신기록 알림**: 대회신기록, 개인최고기록 달성 알림
+
+## 🏗️ 기술 스택
+
+### 백엔드
+- **Hono Framework**: 경량 웹 프레임워크
+- **Cloudflare D1**: SQLite 기반 글로벌 분산 데이터베이스
+- **Cloudflare Workers**: 엣지 런타임
+
+### 프론트엔드  
+- **TypeScript + JSX**: 타입 안전성과 컴포넌트 기반 개발
+- **Tailwind CSS**: 유틸리티 우선 스타일링
+- **모바일 우선**: 반응형 디자인
+
+### 배포 및 운영
+- **Cloudflare Pages**: 글로벌 CDN 배포
+- **GitHub Actions**: 자동 배포
+- **PM2**: 개발 서버 관리
+
+## 🌐 현재 테스트 URL
+- **개발 서버**: https://3000-ithwsjtoqk1fp6o3ddufw-6532622b.e2b.dev
+- **GitHub**: https://github.com/hojune0330/athlete-time
+
+## 📊 데이터 구조
+
+### 커뮤니티
+- **categories**: 게시판 카테고리 (초/중/고/대/실업/마스터즈/자유)
+- **posts**: 게시글 (익명, 세션 토큰)
+- **comments**: 댓글 시스템
+- **likes**: 좋아요 기능
+
+### 경기 일정
+- **competitions**: 대회 정보
+- **schedules**: 종목별 경기 일정
+- **events**: 세부 종목 정보
+
+### 경기 결과
+- **competition_results**: 경기 결과 상세
+- **personal_records**: 개인 최고 기록
+- **medal_counts**: 메달 집계
+- **result_updates**: 실시간 결과 업데이트
+
+## 🎯 사용자 가이드
+
+### 커뮤니티 이용
+1. 카테고리별 게시판 선택 (초등부~마스터즈)
+2. 익명으로 글 작성 및 댓글 참여
+3. 세션 토큰으로 본인 글만 수정/삭제 가능
+
+### 경기 일정 확인
+1. 진행 중인 대회 목록 확인
+2. 종목별 상세 시간표 조회
+3. 실시간 진행 상황 모니터링
+
+### 경기 결과 조회
+1. 종목별/대회별 결과 검색
+2. 개인 기록 및 랭킹 확인
+3. 학교별 메달 현황 조회
+
+## 🚧 현재 배포 상태
+- **상태**: ✅ GitHub 업로드 완료
+- **다음 단계**: Cloudflare Pages 프로덕션 배포
+- **기술 스택**: Hono + Cloudflare D1 + Pages
+- **최종 업데이트**: 2025-09-01
+
+## 📈 향후 계획
+1. **Cloudflare Pages 프로덕션 배포** (다음 단계)
+2. **실제 사용자 피드백** 수집
+3. **커뮤니티 활성화** 프로모션
+4. **추가 기능** 개발 (사용자 요청 기반)
+
+---
+
+> 💡 **핵심 목표**: "육상인들의 마음을 사로잡는 진짜 살아있는 커뮤니티"를 만들어, 초등부부터 마스터즈까지 모든 한국 육상인들이 소통할 수 있는 플랫폼 구축
