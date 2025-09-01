@@ -8,7 +8,7 @@ export default defineConfig({
     build(),
     devServer({
       adapter,
-      entry: 'src/index.tsx'
+      entry: process.env.NODE_ENV === 'production' ? 'src/index.production.tsx' : 'src/index.tsx'
     })
   ]
 })

@@ -2,15 +2,6 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { renderer } from './renderer'
-// Temporary: Comment out database-dependent routes for production deployment
-// import { communityRoutes } from './routes/community'
-// import { schedulesRoutes } from './routes/schedules'
-// import resultsRoutes from './routes/results'
-
-// Temporary: Comment out database bindings for production deployment
-// type Bindings = {
-//   DB: D1Database;
-// }
 
 const app = new Hono()
 
@@ -47,11 +38,6 @@ app.get('/api/results/rankings/:eventName', (c) => {
     message: '데이터베이스 연결 준비 중입니다. 곧 실제 기록이 표시됩니다!'
   })
 })
-
-// API Routes (commented out for production deployment)
-// app.route('/api/community', communityRoutes)
-// app.route('/api/schedules', schedulesRoutes)  
-// app.route('/api/results', resultsRoutes)
 
 // Main landing page (모바일 중심, 핵심 3가지만)
 app.get('/', (c) => {
