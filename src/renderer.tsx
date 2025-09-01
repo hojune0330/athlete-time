@@ -163,12 +163,67 @@ export const renderer = jsxRenderer(({ children }) => {
             console.log('🏃‍♂️ 애슬리트 타임 로드 완료!');
             updateUI();
             
-            // 모달 외부 클릭 시 닫기
-            document.getElementById('loginModal').addEventListener('click', function(e) {
-              if (e.target === this) {
-                hideLoginModal();
+            // 이벤트 리스너 등록 (더 안전한 방식)
+            const loginBtn = document.querySelector('[data-action="showLogin"]');
+            if (loginBtn) {
+              loginBtn.addEventListener('click', showLoginModal);
+            }
+            
+            const shareBtn = document.querySelector('[data-action="share"]');
+            if (shareBtn) {
+              shareBtn.addEventListener('click', shareToKakao);
+            }
+            
+            // 커뮤니티 버튼
+            const communityBtn = document.querySelector('[data-action="community"]');
+            if (communityBtn) {
+              communityBtn.addEventListener('click', () => navigateTo('community'));
+            }
+            
+            // 일정 버튼
+            const scheduleBtn = document.querySelector('[data-action="schedule"]');
+            if (scheduleBtn) {
+              scheduleBtn.addEventListener('click', () => navigateTo('schedule'));
+            }
+            
+            // 결과 버튼
+            const resultsBtn = document.querySelector('[data-action="results"]');
+            if (resultsBtn) {
+              resultsBtn.addEventListener('click', () => navigateTo('results'));
+            }
+            
+            // 모달 관련
+            const loginModal = document.getElementById('loginModal');
+            if (loginModal) {
+              // 모달 외부 클릭 시 닫기
+              loginModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                  hideLoginModal();
+                }
+              });
+              
+              // 닫기 버튼
+              const closeBtn = loginModal.querySelector('[data-action="closeModal"]');
+              if (closeBtn) {
+                closeBtn.addEventListener('click', hideLoginModal);
               }
-            });
+              
+              // 소셜 로그인 버튼들
+              const googleBtn = loginModal.querySelector('[data-provider="google"]');
+              if (googleBtn) googleBtn.addEventListener('click', () => handleSocialLogin('google'));
+              
+              const appleBtn = loginModal.querySelector('[data-provider="apple"]');
+              if (appleBtn) appleBtn.addEventListener('click', () => handleSocialLogin('apple'));
+              
+              const kakaoBtn = loginModal.querySelector('[data-provider="kakao"]');
+              if (kakaoBtn) kakaoBtn.addEventListener('click', () => handleSocialLogin('kakao'));
+              
+              const naverBtn = loginModal.querySelector('[data-provider="naver"]');
+              if (naverBtn) naverBtn.addEventListener('click', () => handleSocialLogin('naver'));
+              
+              const anonBtn = loginModal.querySelector('[data-action="anonymous"]');
+              if (anonBtn) anonBtn.addEventListener('click', handleAnonymousLogin);
+            }
           });
           
           // 전역 함수 등록

@@ -24,7 +24,7 @@ export const StaticApp = () => {
               
               {/* 로그인 버튼 */}
               <button
-                onclick="showLoginModal()"
+                data-action="showLogin"
                 className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors active:scale-95"
               >
                 로그인
@@ -43,7 +43,7 @@ export const StaticApp = () => {
           
           {/* 핵심 3가지 기능 */}
           {/* 1. 커뮤니티 */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-all cursor-pointer" onclick="navigateTo('community')">
+          <div className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-all cursor-pointer" data-action="community">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                 <i className="fas fa-comments text-red-500 text-xl"></i>
@@ -67,7 +67,7 @@ export const StaticApp = () => {
           </div>
 
           {/* 2. 경기 일정 */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-all cursor-pointer" onclick="navigateTo('schedule')">
+          <div className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-all cursor-pointer" data-action="schedule">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <i className="fas fa-calendar-alt text-blue-500 text-xl"></i>
@@ -93,7 +93,7 @@ export const StaticApp = () => {
           </div>
 
           {/* 3. 경기 결과 */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-all cursor-pointer" onclick="navigateTo('results')">
+          <div className="bg-white rounded-xl p-6 shadow-sm border hover:shadow-md transition-all cursor-pointer" data-action="results">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                 <i className="fas fa-trophy text-green-500 text-xl"></i>
@@ -142,7 +142,7 @@ export const StaticApp = () => {
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">로그인</h2>
-              <button onclick="hideLoginModal()" className="p-2 hover:bg-gray-100 rounded-full">
+              <button data-action="closeModal" className="p-2 hover:bg-gray-100 rounded-full">
                 <i className="fas fa-times text-gray-500"></i>
               </button>
             </div>
@@ -151,22 +151,22 @@ export const StaticApp = () => {
 
           {/* 소셜 로그인 버튼들 */}
           <div className="p-6 space-y-3">
-            <button onclick="handleSocialLogin('google')" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
+            <button data-provider="google" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-white text-gray-700 border border-gray-300 hover:bg-gray-50">
               <i className="fab fa-google text-lg"></i>
               <span>구글로 계속하기</span>
             </button>
 
-            <button onclick="handleSocialLogin('apple')" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-black text-white hover:bg-gray-800">
+            <button data-provider="apple" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-black text-white hover:bg-gray-800">
               <i className="fab fa-apple text-lg"></i>
               <span>Apple로 계속하기</span>
             </button>
 
-            <button onclick="handleSocialLogin('kakao')" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-yellow-400 text-black hover:bg-yellow-500">
+            <button data-provider="kakao" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-yellow-400 text-black hover:bg-yellow-500">
               <i className="fas fa-comment text-lg"></i>
               <span>카카오로 계속하기</span>
             </button>
 
-            <button onclick="handleSocialLogin('naver')" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-green-500 text-white hover:bg-green-600">
+            <button data-provider="naver" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-green-500 text-white hover:bg-green-600">
               <i className="fas fa-n text-lg"></i>
               <span>네이버로 계속하기</span>
             </button>
@@ -179,7 +179,7 @@ export const StaticApp = () => {
             </div>
 
             {/* 익명 로그인 */}
-            <button onclick="handleAnonymousLogin()" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">
+            <button data-action="anonymous" className="w-full flex items-center justify-center space-x-3 py-3 px-4 rounded-xl font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">
               <i className="fas fa-user-secret text-lg"></i>
               <span>익명으로 둘러보기</span>
             </button>
