@@ -1,0 +1,26 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "installCommand": "npm install",
+  "devCommand": null,
+  "functions": {
+    "dist/_worker.js": {
+      "runtime": "@vercel/static"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/dist/_worker.js"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/dist/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/_worker.js"
+    }
+  ]
+}
