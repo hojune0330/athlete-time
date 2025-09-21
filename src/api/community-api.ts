@@ -30,6 +30,7 @@ let posts: any[] = [
     date: new Date().toISOString(),
     views: 0,
     likes: [],
+    dislikes: [],
     comments: [],
     isNotice: true,
     isAdmin: true,
@@ -86,6 +87,7 @@ api.post('/posts', async (c) => {
     date: new Date().toISOString(),
     views: 0,
     likes: [],
+    dislikes: [],
     comments: [],
     reports: [],
     attachments: body.attachments || [],
@@ -125,6 +127,7 @@ api.put('/posts/:id', async (c) => {
   if (body.isBlinded !== undefined) post.isBlinded = body.isBlinded;
   if (body.reports !== undefined) post.reports = body.reports;
   if (body.likes !== undefined) post.likes = body.likes;
+  if (body.dislikes !== undefined) post.dislikes = body.dislikes;
   
   post.editedAt = new Date().toISOString();
   
@@ -253,6 +256,40 @@ api.post('/posts/:id/report', async (c) => {
     success: true,
     reportCount: post.reports.length,
     isBlinded: post.isBlinded
+  });
+});
+
+// Like/Dislike post
+api.post('/posts/:id/vote', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const body = await c.req.json();
+  const post = posts.find(p => p.id === id);
+  
+  if (!post) {
+    return c.json({ success: false, error: 'Post not found' }, 404);
+  }
+  
+  const userId = body.userId;
+  const voteType = body.voteType; // 'like' or 'dislike'
+  
+  if (!post.likes) post.likes = [];
+  if (!post.dislikes) post.dislikes = [];
+  
+  // Remove from both arrays first
+  post.likes = post.likes.filter(id => id !== userId);
+  post.dislikes = post.dislikes.filter(id => id !== userId);
+  
+  // Add to appropriate array if not canceling
+  if (voteType === 'like') {
+    post.likes.push(userId);
+  } else if (voteType === 'dislike') {
+    post.dislikes.push(userId);
+  }
+  
+  return c.json({
+    success: true,
+    likes: post.likes.length,
+    dislikes: post.dislikes.length
   });
 });
 
