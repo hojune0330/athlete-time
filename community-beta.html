@@ -46,6 +46,7 @@
           const saved = localStorage.getItem(key);
           return saved ? JSON.parse(saved) : defaultValue;
         } catch (e) {
+          console.error('Error loading from storage:', e);
           return defaultValue;
         }
       };
@@ -53,8 +54,10 @@
       const saveToStorage = (key, value) => {
         try {
           localStorage.setItem(key, JSON.stringify(value));
+          return true;
         } catch (e) {
           console.error('Failed to save to localStorage:', e);
+          return false;
         }
       };
 
@@ -124,8 +127,14 @@
         { name: '일반', icon: 'fa-comment', color: 'gray' },
       ];
 
-      // 데이터 저장 effect
+      // 데이터 저장 effect - 초기 로드 시에는 저장하지 않음
+      const [isInitialLoad, setIsInitialLoad] = useState(true);
+      
       useEffect(() => {
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+          return;
+        }
         saveToStorage('athletetime_posts', posts);
       }, [posts]);
 
@@ -154,16 +163,29 @@
 
         const post = {
           id: Date.now(),
-          ...newPost,
+          category: newPost.category,
+          title: newPost.title,
           author: newPost.author || 'ㅇㅇ',
+          content: newPost.content,
+          password: newPost.password,
           date: new Date().toISOString(),
           views: 0,
           likes: [],
           comments: [],
-          reports: []
+          reports: [],
+          attachments: newPost.attachments || []
         };
 
-        setPosts([post, ...posts]);
+        const updatedPosts = [post, ...posts];
+        setPosts(updatedPosts);
+        
+        // localStorage에 저장
+        const saved = saveToStorage('athletetime_posts', updatedPosts);
+        if (saved) {
+          console.log('Post saved successfully');
+        }
+        
+        // 폼 초기화
         setNewPost({
           category: '일반',
           title: '',
@@ -182,13 +204,17 @@
 
         if (isAdmin) {
           if (confirm('관리자 권한으로 삭제하시겠습니까?')) {
-            setPosts(posts.filter(p => p.id !== postId));
+            const updatedPosts = posts.filter(p => p.id !== postId);
+            setPosts(updatedPosts);
+            saveToStorage('athletetime_posts', updatedPosts);
             setSelectedPost(null);
           }
         } else {
           const password = prompt('게시물 비밀번호를 입력하세요:');
           if (password === post.password) {
-            setPosts(posts.filter(p => p.id !== postId));
+            const updatedPosts = posts.filter(p => p.id !== postId);
+            setPosts(updatedPosts);
+            saveToStorage('athletetime_posts', updatedPosts);
             setSelectedPost(null);
           } else if (password) {
             alert('비밀번호가 일치하지 않습니다.');
@@ -239,14 +265,18 @@
           author: newComment.author || 'ㅇㅇ',
           content: newComment.content,
           date: new Date().toISOString(),
-          reports: []
+          reports: [],
+          isBlinded: false
         };
 
-        setPosts(posts.map(post => 
+        const updatedPosts = posts.map(post => 
           post.id === postId 
-            ? { ...post, comments: [...post.comments, comment] }
+            ? { ...post, comments: [...(post.comments || []), comment] }
             : post
-        ));
+        );
+        
+        setPosts(updatedPosts);
+        saveToStorage('athletetime_posts', updatedPosts);
         
         setNewComment({ author: '', content: '' });
       };
@@ -482,6 +512,10 @@
 
                 {/* 게시물 목록 */}
                 <div className="bg-white rounded-lg shadow-sm">
+                  {/* 디버깅 정보 */}
+                  <div className="p-2 bg-yellow-100 text-xs text-gray-700 border-b">
+                    🔍 디버깅: 전체 {posts.length}개 | 현재 보기 {filteredPosts.length}개 | 카테고리: {selectedCategory}
+                  </div>
                   {filteredPosts.length === 0 ? (
                     <div className="p-20 text-center text-gray-500">
                       <i className="fas fa-inbox text-4xl mb-4"></i>
@@ -532,7 +566,7 @@
                               
                               <h3 className="font-medium text-gray-900 mb-1">
                                 {post.title}
-                                {post.comments.length > 0 && (
+                                {post.comments && post.comments.length > 0 && (
                                   <span className="ml-2 text-sm text-blue-500">
                                     [{post.comments.length}]
                                   </span>
@@ -660,7 +694,10 @@
                       취소
                     </button>
                     <button
-                      onClick={handleSubmitPost}
+                      onClick={() => {
+                        console.log('Submitting post:', newPost);
+                        handleSubmitPost();
+                      }}
                       className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                     >
                       작성하기
@@ -789,7 +826,7 @@
                     
                     {/* 댓글 목록 */}
                     <div className="space-y-4">
-                      {selectedPost.comments.map(comment => (
+                      {selectedPost.comments && selectedPost.comments.map(comment => (
                         <div key={comment.id} className={`p-4 rounded-lg ${
                           comment.isBlinded ? 'bg-gray-100' : 'bg-white border'
                         }`}>
@@ -831,7 +868,7 @@
                         </div>
                       ))}
                       
-                      {selectedPost.comments.length === 0 && (
+                      {(!selectedPost.comments || selectedPost.comments.length === 0) && (
                         <p className="text-center text-gray-500 py-8">
                           첫 댓글을 작성해보세요!
                         </p>
