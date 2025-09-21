@@ -4,13 +4,16 @@
 import { useState, useEffect } from 'react'
 import { LoginModal } from './LoginModalV2'
 import { QuickShare } from './SocialShareV2'
+import { CommunityPage } from './CommunityPage'
+import { MarketplacePage } from './MarketplacePage'
+import { ResultsPage } from './ResultsPage'
 import { SessionManager } from '../auth/session'
 import type { UserSession } from '../auth/providers'
 
 export const InteractiveAppV2 = () => {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
-  const [currentPage, setCurrentPage] = useState<'home' | 'community' | 'schedule' | 'results'>('home')
+  const [currentPage, setCurrentPage] = useState<'home' | 'community' | 'marketplace' | 'results'>('home')
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const [activeHoverCard, setActiveHoverCard] = useState<string | null>(null)
@@ -47,7 +50,7 @@ export const InteractiveAppV2 = () => {
 
   // 페이지 이동 처리 with 트랜지션
   const navigateTo = (page: typeof currentPage) => {
-    if (!currentUser && (page === 'community' || page === 'schedule' || page === 'results')) {
+    if (!currentUser && (page === 'community' || page === 'marketplace' || page === 'results')) {
       setShowLoginModal(true)
       return
     }
@@ -69,7 +72,7 @@ export const InteractiveAppV2 = () => {
     const titles = {
       home: '애슬리트 타임 - 한국 육상인 통합 플랫폼',
       community: '커뮤니티 - 애슬리트 타임',
-      schedule: '경기 일정 - 애슬리트 타임',
+      marketplace: '중고 거래 - 애슬리트 타임',
       results: '경기 결과 - 애슬리트 타임'
     }
     return titles[currentPage]
@@ -130,7 +133,7 @@ export const InteractiveAppV2 = () => {
 
             {/* 네비게이션 (데스크톱) */}
             <nav className="hidden md:flex items-center space-x-1">
-              {['community', 'schedule', 'results'].map((page) => (
+              {['community', 'marketplace', 'results'].map((page) => (
                 <button
                   key={page}
                   onClick={() => navigateTo(page as typeof currentPage)}
@@ -145,7 +148,7 @@ export const InteractiveAppV2 = () => {
                   }`}
                 >
                   {page === 'community' && '커뮤니티'}
-                  {page === 'schedule' && '경기 일정'}
+                  {page === 'marketplace' && '중고 거래'}
                   {page === 'results' && '경기 결과'}
                 </button>
               ))}
@@ -320,13 +323,13 @@ export const InteractiveAppV2 = () => {
                 </div>
               </div>
 
-              {/* 경기 일정 카드 */}
+              {/* 중고 거래 카드 */}
               <div
-                onMouseEnter={() => setActiveHoverCard('schedule')}
+                onMouseEnter={() => setActiveHoverCard('marketplace')}
                 onMouseLeave={() => setActiveHoverCard(null)}
-                onClick={() => navigateTo('schedule')}
+                onClick={() => navigateTo('marketplace')}
                 className={`relative group cursor-pointer transform transition-all duration-300 ${
-                  activeHoverCard === 'schedule' ? 'scale-105 -translate-y-2' : ''
+                  activeHoverCard === 'marketplace' ? 'scale-105 -translate-y-2' : ''
                 }`}
               >
                 <div className={`absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity`}></div>
@@ -339,43 +342,43 @@ export const InteractiveAppV2 = () => {
                   <div className="w-16 h-16 mb-4 relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl animate-pulse"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <i className="fas fa-calendar-alt text-white text-2xl"></i>
+                      <i className="fas fa-shopping-bag text-white text-2xl"></i>
                     </div>
                   </div>
                   
                   <h3 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    경기 일정
+                    중고 거래
                   </h3>
                   <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    실시간 경기 시간표와 대회 정보
+                    육상 용품 거래 마켓플레이스
                   </p>
                   
-                  {/* 오늘의 경기 */}
+                  {/* 인기 상품 */}
                   <div className={`space-y-2 mb-4 p-3 rounded-lg ${
                     isDarkMode ? 'bg-gray-800/50' : 'bg-blue-50'
                   }`}>
                     <div className="flex items-center justify-between">
                       <span className={`text-sm font-semibold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                        오늘의 경기
+                        인기 상품
                       </span>
-                      <span className="px-2 py-1 bg-red-500 text-white text-xs rounded-full animate-pulse">
-                        LIVE
+                      <span className="px-2 py-1 bg-orange-500 text-white text-xs rounded-full animate-pulse">
+                        HOT
                       </span>
                     </div>
                     <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      2025 춘계 중고연맹전
+                      나이키 스파이크 외 127개
                     </div>
                   </div>
                   
-                  {/* 예정된 대회 */}
+                  {/* 카테고리 */}
                   <div className={`text-sm space-y-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     <div className="flex justify-between">
-                      <span>전국체전 예선</span>
-                      <span>9/15</span>
+                      <span>스파이크</span>
+                      <span className="text-green-500">45개</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>추계 대학대회</span>
-                      <span>9/22</span>
+                      <span>유니폼</span>
+                      <span className="text-green-500">32개</span>
                     </div>
                   </div>
                 </div>
@@ -516,51 +519,14 @@ export const InteractiveAppV2 = () => {
         )}
 
         {/* 다른 페이지들 */}
-        {currentPage !== 'home' && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* 페이지 헤더 */}
-            <div className="mb-8">
-              <button
-                onClick={() => navigateTo('home')}
-                className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
-                  isDarkMode 
-                    ? 'text-gray-300 hover:text-white hover:bg-gray-800' 
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <i className="fas fa-arrow-left"></i>
-                <span>홈으로</span>
-              </button>
-            </div>
-
-            {/* 페이지 컨텐트 */}
-            <div className={`rounded-3xl p-8 backdrop-blur-sm ${
-              isDarkMode 
-                ? 'bg-gray-900/80 border border-gray-700' 
-                : 'bg-white/80 border border-gray-200'
-            }`}>
-              <h1 className={`text-4xl font-bold mb-8 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {currentPage === 'community' && '커뮤니티'}
-                {currentPage === 'schedule' && '경기 일정'}
-                {currentPage === 'results' && '경기 결과'}
-              </h1>
-              
-              <div className="text-center py-16">
-                <div className="w-32 h-32 mx-auto mb-6 relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-3xl animate-pulse"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <i className="fas fa-rocket text-white text-5xl animate-bounce"></i>
-                  </div>
-                </div>
-                <p className={`text-2xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  페이지 준비 중입니다
-                </p>
-                <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  곧 멋진 기능으로 찾아뵙겠습니다! 🎯
-                </p>
-              </div>
-            </div>
-          </div>
+        {currentPage === 'community' && (
+          <CommunityPage isDarkMode={isDarkMode} onBack={() => navigateTo('home')} />
+        )}
+        {currentPage === 'marketplace' && (
+          <MarketplacePage isDarkMode={isDarkMode} onBack={() => navigateTo('home')} />
+        )}
+        {currentPage === 'results' && (
+          <ResultsPage isDarkMode={isDarkMode} onBack={() => navigateTo('home')} />
         )}
       </main>
 
