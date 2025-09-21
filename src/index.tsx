@@ -20,6 +20,7 @@ app.use('/api/*', cors())
 
 // Serve static files
 app.use('/static/*', serveStatic({ root: './public' }))
+app.use('/app', serveStatic({ root: './public/static', path: '/app.html' }))
 
 // Use JSX renderer for HTML pages
 app.use(renderer)
@@ -54,9 +55,92 @@ app.get('/api/results/rankings/:eventName', (c) => {
 // app.route('/api/schedules', schedulesRoutes)  
 // app.route('/api/results', resultsRoutes)
 
-// Main landing page - Static JSX App with Client-side Interactions
+// Main landing page with interactive React app
 app.get('/', (c) => {
-  return c.render(<StaticAppV2 />)
+  // Fallback HTML with React mounting point
+  return c.html(`
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>애슬리트 타임 | 한국 육상인 통합 플랫폼</title>
+      <meta name="description" content="초중고대실업마스터즈 육상 경기 시간표와 익명 커뮤니티">
+      
+      <!-- Tailwind CSS -->
+      <script src="https://cdn.tailwindcss.com"></script>
+      
+      <!-- Font Awesome -->
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+      
+      <!-- React -->
+      <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+      <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+      
+      <style>
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient {
+          animation: gradient 3s ease infinite;
+          background-size: 300% 300%;
+        }
+        .bg-300\\% { background-size: 300% 300%; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+      </style>
+    </head>
+    <body>
+      <div id="root">
+        <!-- React app will be mounted here -->
+        <div class="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
+          <div class="text-center">
+            <h1 class="text-4xl font-bold mb-4 bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent animate-pulse">
+              애슬리트 타임
+            </h1>
+            <p class="text-gray-600">로딩 중...</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Interactive App Bundle -->
+      <script type="module">
+        // Dynamically import and render the React app
+        import('/static/app.js').then(module => {
+          console.log('App module loaded');
+        }).catch(err => {
+          console.error('Failed to load app:', err);
+          // Fallback: Load directly
+          loadReactApp();
+        });
+        
+        function loadReactApp() {
+          // Wait for React to be available
+          if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
+            setTimeout(loadReactApp, 100);
+            return;
+          }
+          
+          // Import components directly (bundled version)
+          const script = document.createElement('script');
+          script.src = '/static/bundle.js';
+          script.onload = () => {
+            if (window.AthletimeApp) {
+              const root = ReactDOM.createRoot(document.getElementById('root'));
+              root.render(React.createElement(window.AthletimeApp));
+            }
+          };
+          document.body.appendChild(script);
+        }
+        
+        // Auto-load after delay
+        setTimeout(loadReactApp, 1000);
+      </script>
+    </body>
+    </html>
+  `)
 })
 
 export default app
