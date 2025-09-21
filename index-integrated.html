@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>애슬리트 타임 | 한국 육상인 통합 플랫폼</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', sans-serif; }
+    .post-row:hover { background-color: #f8f9fa; }
+    .hot-post { background-color: #fff3cd; }
+    .notice-post { background-color: #d1ecf1; }
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .animate-gradient {
+      animation: gradient 3s ease infinite;
+      background-size: 300% 300%;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+  
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    
+    function IntegratedApp() {
+      const [currentPage, setCurrentPage] = useState('home');
+      const [isDarkMode, setIsDarkMode] = useState(false);
+      
+      // 커뮤니티 상태들
+      const [posts, setPosts] = useState([
+        {
+          id: 1001,
+          category: '공지',
+          title: '[필독] 육상 갤러리 이용 규칙',
+          author: '운영자',
+          date: '2025.09.21',
+          views: 15234,
+          likes: 89,
+          comments: 12,
+          isNotice: true
+        },
+        {
+          id: 1000,
+          category: '대회',
+          title: '전국체전 남고 100m 결승 ㄷㄷㄷㄷ',
+          author: 'ㅇㅇ',
+          date: '12:45',
+          views: 3421,
+          likes: 127,
+          comments: 89,
+          isHot: true,
+          preview: '김형식 10.23 대박... 고등학생이 10초 2???'
+        },
+        {
+          id: 999,
+          category: '잡담',
+          title: '나이키 줌 슈퍼플라이 vs 아디다스 프라임 뭐가 나음?',
+          author: '스프린터지망생',
+          date: '12:30',
+          views: 892,
+          likes: 23,
+          comments: 45,
+          preview: '둘다 써본 사람 있음? 고민중인데...'
+        },
+        {
+          id: 998,
+          category: '대회',
+          title: '춘계중고연맹전 여중 1500m 최서연 선수 폼 미쳤다',
+          author: '육상팬',
+          date: '11:23',
+          views: 2103,
+          likes: 67,
+          comments: 34,
+          isHot: true,
+          preview: '4분 45초... 중학생 맞나요? 국가대표감인데'
+        },
+        {
+          id: 997,
+          category: '질문',
+          title: '100m 스타트 반응속도 줄이는 법 있음?',
+          author: '0.2초늦음',
+          date: '10:15',
+          views: 456,
+          likes: 8,
+          comments: 22,
+          preview: '매번 반응속도 0.2초대 나오는데 팁좀...'
+        },
+        {
+          id: 996,
+          category: '정보',
+          title: '2025 대회 일정 총정리.txt',
+          author: '정보봇',
+          date: '09:30',
+          views: 5678,
+          likes: 234,
+          comments: 12,
+          isHot: true,
+          preview: '전국체전(9/15), 추계대학(9/22), 종별선수권(10/5)...'
+        },
+        {
+          id: 995,
+          category: '잡담',
+          title: '서울고 김형식 인스타 팔로워 10만 ㅋㅋㅋㅋ',
+          author: 'ㅇㅇ',
+          date: '어제',
+          views: 8934,
+          likes: 456,
+          comments: 123,
+          isHot: true,
+          preview: '고등학생이 연예인급... 육상 인기 올라가나'
+        }
+      ]);
+      
+      const [showWriteModal, setShowWriteModal] = useState(false);
+      const [showPostDetail, setShowPostDetail] = useState(null);
+      const [searchTerm, setSearchTerm] = useState('');
+      const [selectedCategory, setSelectedCategory] = useState('전체');
+      
+      const [newPost, setNewPost] = useState({
+        title: '',
+        category: '잡담',
+        content: '',
+        author: ''
+      });
+      
+      const [comments, setComments] = useState({
+        1000: [
+          { id: 1, author: 'ㅇㅇ', content: '진짜 미쳤네 ㄷㄷ', date: '5분 전', likes: 12 },
+          { id: 2, author: '육상팬', content: '김형식 국대 가야됨', date: '10분 전', likes: 8 },
+          { id: 3, author: '스프린터', content: '나도 10초대 뛰고싶다...', date: '15분 전', likes: 3 }
+        ]
+      });
+      
+      // 글 작성
+      const handleSubmitPost = () => {
+        if (!newPost.title || !newPost.content) {
+          alert('제목과 내용을 입력해주세요!');
+          return;
+        }
+        
+        const post = {
+          id: Math.max(...posts.map(p => p.id)) + 1,
+          category: newPost.category,
+          title: newPost.title,
+          author: newPost.author || 'ㅇㅇ',
+          date: '방금 전',
+          views: 0,
+          likes: 0,
+          comments: 0,
+          preview: newPost.content.substring(0, 50) + '...'
+        };
+        
+        setPosts([post, ...posts]);
+        setShowWriteModal(false);
+        setNewPost({ title: '', category: '잡담', content: '', author: '' });
+      };
+      
+      // 추천
+      const handleLike = (postId) => {
+        setPosts(posts.map(post => 
+          post.id === postId ? { ...post, likes: post.likes + 1 } : post
+        ));
+      };
+      
+      // 댓글 작성
+      const handleAddComment = (postId, content, author) => {
+        const newComment = {
+          id: Date.now(),
+          author: author || 'ㅇㅇ',
+          content,
+          date: '방금 전',
+          likes: 0
+        };
+        
+        setComments({
+          ...comments,
+          [postId]: [...(comments[postId] || []), newComment]
+        });
+        
+        setPosts(posts.map(post => 
+          post.id === postId ? { ...post, comments: post.comments + 1 } : post
+        ));
+      };
+      
+      // 필터링된 게시글
+      const filteredPosts = posts.filter(post => {
+        const matchCategory = selectedCategory === '전체' || post.category === selectedCategory;
+        const matchSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (post.preview && post.preview.toLowerCase().includes(searchTerm.toLowerCase()));
+        return matchCategory && matchSearch;
+      });
+      
+      // 홈 페이지 컴포넌트
+      const HomePage = () => (
+        <>
+          {/* 히어로 섹션 */}
+          <div className="text-center mb-12 animate-fade-in pt-8">
+            <h1 className={`text-4xl sm:text-5xl lg:text-6xl font-black mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 bg-clip-text text-transparent animate-gradient">
+                육상인들의 새로운 시작
+              </span>
+            </h1>
+            <p className={`text-lg sm:text-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              초등부부터 마스터즈까지, 모든 한국 육상인들이 함께하는 공간
+            </p>
+          </div>
+          
+          {/* 메인 기능 카드들 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {/* 커뮤니티 카드 */}
+            <div
+              onClick={() => setCurrentPage('community')}
+              className={`relative group cursor-pointer transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 p-8 rounded-3xl ${
+                isDarkMode 
+                  ? 'bg-gray-900/80 border border-gray-700' 
+                  : 'bg-white/80 border border-gray-200 shadow-lg'
+              }`}
+            >
+              <div className="w-16 h-16 mb-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl flex items-center justify-center">
+                <i className="fas fa-comments text-white text-2xl"></i>
+              </div>
+              <h3 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                커뮤니티
+              </h3>
+              <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                육상 갤러리에서 자유롭게 소통하세요
+              </p>
+              <div className={`text-sm mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span>🔥 HOT 게시글</span>
+                  <span className="text-red-500 font-bold">4개</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>오늘의 글</span>
+                  <span className="font-bold">127개</span>
+                </div>
+              </div>
+              <button className="w-full py-3 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-lg font-bold">
+                입장하기 →
+              </button>
+            </div>
+            
+            {/* 중고거래 카드 */}
+            <div
+              className={`relative group cursor-pointer transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 p-8 rounded-3xl opacity-75 ${
+                isDarkMode 
+                  ? 'bg-gray-900/80 border border-gray-700' 
+                  : 'bg-white/80 border border-gray-200 shadow-lg'
+              }`}
+            >
+              <div className="w-16 h-16 mb-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center">
+                <i className="fas fa-shopping-bag text-white text-2xl"></i>
+              </div>
+              <h3 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                중고 거래
+              </h3>
+              <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                육상 용품 거래 (준비중)
+              </p>
+              <button className="w-full py-3 bg-gray-300 text-gray-500 rounded-lg font-bold cursor-not-allowed">
+                준비중
+              </button>
+            </div>
+            
+            {/* 경기결과 카드 */}
+            <div
+              className={`relative group cursor-pointer transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 p-8 rounded-3xl opacity-75 ${
+                isDarkMode 
+                  ? 'bg-gray-900/80 border border-gray-700' 
+                  : 'bg-white/80 border border-gray-200 shadow-lg'
+              }`}
+            >
+              <div className="w-16 h-16 mb-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center">
+                <i className="fas fa-trophy text-white text-2xl"></i>
+              </div>
+              <h3 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                경기 결과
+              </h3>
+              <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                실시간 결과 (준비중)
+              </p>
+              <button className="w-full py-3 bg-gray-300 text-gray-500 rounded-lg font-bold cursor-not-allowed">
+                준비중
+              </button>
+            </div>
+          </div>
+          
+          {/* 최신 게시글 미리보기 */}
+          <div className="max-w-6xl mx-auto mt-12">
+            <h2 className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              🔥 인기 게시글
+            </h2>
+            <div className={`rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-white'} shadow-lg`}>
+              {posts.filter(p => p.isHot).slice(0, 3).map(post => (
+                <div
+                  key={post.id}
+                  onClick={() => {
+                    setCurrentPage('community');
+                    setShowPostDetail(post);
+                  }}
+                  className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${isDarkMode ? 'border-gray-800 hover:bg-gray-800' : ''}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          post.category === '대회' ? 'bg-red-100 text-red-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>{post.category}</span>
+                        <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {post.title}
+                        </span>
+                        <span className="text-red-500 text-sm">[{post.comments}]</span>
+                      </div>
+                      {post.preview && (
+                        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {post.preview}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right text-sm">
+                      <div className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
+                        조회 {post.views}
+                      </div>
+                      <div className="text-blue-500 font-medium">
+                        추천 {post.likes}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      );
+      
+      // 커뮤니티 페이지 컴포넌트
+      const CommunityPage = () => (
+        <>
+          {/* 카테고리 & 검색 */}
+          <div className="max-w-6xl mx-auto px-4 py-4">
+            <div className="flex flex-wrap gap-2 mb-4">
+              {['전체', '공지', '대회', '훈련', '질문', '정보', '잡담', '중고'].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    selectedCategory === cat 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="검색어를 입력하세요"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 px-4 py-2 border rounded-lg"
+              />
+              <button className="px-4 py-2 bg-gray-800 text-white rounded-lg">
+                <i className="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+          
+          {/* 게시글 목록 */}
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="bg-white rounded-lg shadow-sm">
+              {/* 테이블 헤더 */}
+              <div className="grid grid-cols-12 gap-2 p-3 border-b bg-gray-50 text-sm font-medium text-gray-700">
+                <div className="col-span-1 text-center">번호</div>
+                <div className="col-span-1 text-center">분류</div>
+                <div className="col-span-6">제목</div>
+                <div className="col-span-1 text-center">글쓴이</div>
+                <div className="col-span-1 text-center">날짜</div>
+                <div className="col-span-1 text-center">조회</div>
+                <div className="col-span-1 text-center">추천</div>
+              </div>
+              
+              {/* 게시글 행 */}
+              {filteredPosts.map((post) => (
+                <div
+                  key={post.id}
+                  onClick={() => setShowPostDetail(post)}
+                  className={`grid grid-cols-12 gap-2 p-3 border-b cursor-pointer hover:bg-gray-50 ${
+                    post.isNotice ? 'notice-post' : post.isHot ? 'hot-post' : ''
+                  }`}
+                >
+                  <div className="col-span-1 text-center text-sm">
+                    {post.isNotice ? '공지' : post.id}
+                  </div>
+                  <div className="col-span-1 text-center">
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      post.category === '대회' ? 'bg-red-100 text-red-600' :
+                      post.category === '훈련' ? 'bg-green-100 text-green-600' :
+                      post.category === '질문' ? 'bg-yellow-100 text-yellow-600' :
+                      post.category === '중고' ? 'bg-purple-100 text-purple-600' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {post.category}
+                    </span>
+                  </div>
+                  <div className="col-span-6">
+                    <div className="flex items-center space-x-2">
+                      {post.isHot && <span className="text-red-500 font-bold">🔥</span>}
+                      <span className="font-medium hover:text-blue-600">
+                        {post.title}
+                      </span>
+                      {post.comments > 0 && (
+                        <span className="text-red-500 text-sm">[{post.comments}]</span>
+                      )}
+                    </div>
+                    {post.preview && (
+                      <div className="text-xs text-gray-500 mt-1">{post.preview}</div>
+                    )}
+                  </div>
+                  <div className="col-span-1 text-center text-sm text-gray-600">
+                    {post.author}
+                  </div>
+                  <div className="col-span-1 text-center text-sm text-gray-500">
+                    {post.date}
+                  </div>
+                  <div className="col-span-1 text-center text-sm text-gray-600">
+                    {post.views.toLocaleString()}
+                  </div>
+                  <div className="col-span-1 text-center text-sm text-blue-600 font-medium">
+                    {post.likes}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      );
+      
+      return (
+        <div className={`min-h-screen ${
+          isDarkMode 
+            ? 'bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900' 
+            : 'bg-gray-50'
+        }`}>
+          {/* 헤더 */}
+          <header className={`${isDarkMode ? 'bg-gray-900/70' : 'bg-white'} border-b sticky top-0 z-40`}>
+            <div className="max-w-6xl mx-auto px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <h1 
+                    onClick={() => setCurrentPage('home')}
+                    className="text-2xl font-bold text-blue-600 cursor-pointer hover:text-blue-700"
+                  >
+                    🏃 애슬리트 타임
+                  </h1>
+                  <nav className="hidden md:flex items-center space-x-4">
+                    <button
+                      onClick={() => setCurrentPage('home')}
+                      className={`font-medium ${
+                        currentPage === 'home' 
+                          ? 'text-blue-600' 
+                          : isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      홈
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage('community')}
+                      className={`font-medium ${
+                        currentPage === 'community' 
+                          ? 'text-blue-600' 
+                          : isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      커뮤니티
+                    </button>
+                  </nav>
+                </div>
+                <div className="flex items-center space-x-3">
+                  {currentPage === 'community' && (
+                    <button 
+                      onClick={() => setShowWriteModal(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                    >
+                      <i className="fas fa-pen mr-2"></i>글쓰기
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    className={`p-2 rounded-lg transition-all ${
+                      isDarkMode 
+                        ? 'text-yellow-400 hover:bg-gray-800' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <i className={`fas ${isDarkMode ? 'fa-sun' : 'fa-moon'} text-lg`}></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </header>
+          
+          {/* 메인 컨텐츠 */}
+          <div className="px-4 py-6">
+            {currentPage === 'home' ? <HomePage /> : <CommunityPage />}
+          </div>
+          
+          {/* 글쓰기 모달 */}
+          {showWriteModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <h2 className="text-xl font-bold mb-4">새 글 작성</h2>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">카테고리</label>
+                  <select
+                    value={newPost.category}
+                    onChange={(e) => setNewPost({...newPost, category: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="대회">대회</option>
+                    <option value="훈련">훈련</option>
+                    <option value="질문">질문</option>
+                    <option value="정보">정보</option>
+                    <option value="잡담">잡담</option>
+                    <option value="중고">중고</option>
+                  </select>
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">제목</label>
+                  <input
+                    type="text"
+                    value={newPost.title}
+                    onChange={(e) => setNewPost({...newPost, title: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="제목을 입력하세요"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">작성자 (선택)</label>
+                  <input
+                    type="text"
+                    value={newPost.author}
+                    onChange={(e) => setNewPost({...newPost, author: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="닉네임 (비워두면 ㅇㅇ)"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">내용</label>
+                  <textarea
+                    value={newPost.content}
+                    onChange={(e) => setNewPost({...newPost, content: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-lg h-64"
+                    placeholder="내용을 입력하세요"
+                  />
+                </div>
+                
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowWriteModal(false)}
+                    className="px-4 py-2 bg-gray-200 rounded-lg"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleSubmitPost}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                  >
+                    작성
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* 게시글 상세 모달 */}
+          {showPostDetail && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-2xl font-bold">{showPostDetail.title}</h2>
+                    <button
+                      onClick={() => setShowPostDetail(null)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <i className="fas fa-times text-xl"></i>
+                    </button>
+                  </div>
+                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    <span>{showPostDetail.author}</span>
+                    <span>{showPostDetail.date}</span>
+                    <span>조회 {showPostDetail.views}</span>
+                    <span>추천 {showPostDetail.likes}</span>
+                  </div>
+                </div>
+                
+                <div className="border-t border-b py-8 mb-4">
+                  <p className="whitespace-pre-wrap">
+                    {showPostDetail.preview || '게시글 내용이 여기에 표시됩니다...'}
+                  </p>
+                </div>
+                
+                <div className="flex justify-center mb-6">
+                  <button
+                    onClick={() => handleLike(showPostDetail.id)}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg"
+                  >
+                    <i className="fas fa-thumbs-up mr-2"></i>
+                    추천 {showPostDetail.likes}
+                  </button>
+                </div>
+                
+                {/* 댓글 섹션 */}
+                <div className="border-t pt-4">
+                  <h3 className="font-bold mb-4">댓글 {comments[showPostDetail.id]?.length || 0}</h3>
+                  
+                  {comments[showPostDetail.id]?.map(comment => (
+                    <div key={comment.id} className="mb-3 p-3 bg-gray-50 rounded">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium">{comment.author}</span>
+                        <span className="text-xs text-gray-500">{comment.date}</span>
+                      </div>
+                      <p className="text-sm">{comment.content}</p>
+                      <button className="text-xs text-blue-600 mt-1">
+                        👍 {comment.likes}
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {/* 댓글 작성 */}
+                  <div className="mt-4">
+                    <textarea
+                      id={`comment-${showPostDetail.id}`}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="댓글을 입력하세요"
+                      rows="3"
+                    />
+                    <button
+                      onClick={() => {
+                        const textarea = document.getElementById(`comment-${showPostDetail.id}`);
+                        if (textarea.value) {
+                          handleAddComment(showPostDetail.id, textarea.value, 'ㅇㅇ');
+                          textarea.value = '';
+                        }
+                      }}
+                      className="mt-2 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm"
+                    >
+                      댓글 작성
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // 앱 렌더링
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<IntegratedApp />);
+  </script>
+</body>
+</html>
