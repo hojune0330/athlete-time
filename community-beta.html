@@ -86,7 +86,8 @@
           comments: [],
           isNotice: true,
           isAdmin: true,
-          reports: []
+          reports: [],
+          isBlinded: false
         }
       ]));
 
@@ -140,6 +141,7 @@
 
       // 게시물 필터링
       const filteredPosts = posts
+        .filter(post => isAdmin || !post.isBlinded) // 관리자는 블라인드 게시물도 볼 수 있음
         .filter(post => selectedCategory === '전체' || post.category === selectedCategory)
         .filter(post => 
           post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -173,7 +175,8 @@
           likes: [],
           comments: [],
           reports: [],
-          attachments: newPost.attachments || []
+          attachments: newPost.attachments || [],
+          isBlinded: false
         };
 
         const updatedPosts = [post, ...posts];
@@ -337,6 +340,39 @@
           }
           return { ...post, likes: [...likes, userIp] };
         }));
+      };
+
+      // 게시물 신고
+      const handleReportPost = (postId) => {
+        const userIp = Math.random().toString(36).substr(2, 9); // 임시 사용자 식별자
+        
+        const updatedPosts = posts.map(post => {
+          if (post.id !== postId) return post;
+          
+          const reports = post.reports || [];
+          if (reports.includes(userIp)) {
+            alert('이미 신고한 게시물입니다.');
+            return post;
+          }
+          
+          const newReports = [...reports, userIp];
+          if (newReports.length >= 10) {
+            alert('신고가 누적되어 게시물이 블라인드 처리되었습니다.');
+            return { ...post, reports: newReports, isBlinded: true };
+          }
+          
+          alert(`신고가 접수되었습니다. (${newReports.length}/10)`);
+          return { ...post, reports: newReports };
+        });
+        
+        setPosts(updatedPosts);
+        saveToStorage('athletetime_posts', updatedPosts);
+        
+        // 블라인드된 게시물이면 상세 모달 닫기
+        const updatedPost = updatedPosts.find(p => p.id === postId);
+        if (updatedPost?.isBlinded && selectedPost?.id === postId) {
+          setSelectedPost(null);
+        }
       };
 
       // 조회수 증가
@@ -514,7 +550,7 @@
                 <div className="bg-white rounded-lg shadow-sm">
                   {/* 디버깅 정보 */}
                   <div className="p-2 bg-yellow-100 text-xs text-gray-700 border-b">
-                    🔍 디버깅: 전체 {posts.length}개 | 현재 보기 {filteredPosts.length}개 | 카테고리: {selectedCategory}
+                    🔍 디버깅: 전체 {posts.length}개 | 현재 보기 {filteredPosts.length}개 | 카테고리: {selectedCategory} | 블라인드: {posts.filter(p => p.isBlinded).length}개
                   </div>
                   {filteredPosts.length === 0 ? (
                     <div className="p-20 text-center text-gray-500">
@@ -533,7 +569,8 @@
                         <div
                           key={post.id}
                           className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                            post.isNotice ? 'notice-post' : ''
+                            post.isNotice ? 'notice-post' : 
+                            post.isBlinded && isAdmin ? 'bg-red-50 border-l-4 border-red-500' : ''
                           }`}
                           onClick={() => {
                             setSelectedPost(post);
@@ -559,6 +596,11 @@
                                     관리자
                                   </span>
                                 )}
+                                {post.isBlinded && isAdmin && (
+                                  <span className="px-2 py-0.5 text-xs bg-red-600 text-white rounded">
+                                    <i className="fas fa-eye-slash mr-1"></i>블라인드
+                                  </span>
+                                )}
                                 {post.editedAt && (
                                   <span className="text-xs text-gray-500">(수정됨)</span>
                                 )}
@@ -581,6 +623,14 @@
                                 <span><i className="fas fa-eye mr-1"></i>{post.views}</span>
                                 <span>·</span>
                                 <span><i className="fas fa-heart mr-1"></i>{post.likes.length}</span>
+                                {post.reports && post.reports.length > 0 && (
+                                  <>
+                                    <span>·</span>
+                                    <span className="text-orange-500">
+                                      <i className="fas fa-flag mr-1"></i>{post.reports.length}
+                                    </span>
+                                  </>
+                                )}
                               </div>
                             </div>
                             
@@ -753,6 +803,33 @@
                     </div>
                     
                     <div className="flex items-center space-x-2">
+                      {!selectedPost.isAdmin && (
+                        <button
+                          onClick={() => handleReportPost(selectedPost.id)}
+                          className="px-3 py-1 text-sm text-orange-600 hover:text-orange-700"
+                        >
+                          <i className="fas fa-flag mr-1"></i>
+                          신고 {selectedPost.reports?.length || 0}/10
+                        </button>
+                      )}
+                      {isAdmin && selectedPost.isBlinded && (
+                        <button
+                          onClick={() => {
+                            const updatedPosts = posts.map(p => 
+                              p.id === selectedPost.id 
+                                ? { ...p, isBlinded: false, reports: [] }
+                                : p
+                            );
+                            setPosts(updatedPosts);
+                            saveToStorage('athletetime_posts', updatedPosts);
+                            setSelectedPost({ ...selectedPost, isBlinded: false, reports: [] });
+                            alert('블라인드가 해제되었습니다.');
+                          }}
+                          className="px-3 py-1 text-sm text-green-600 hover:text-green-700"
+                        >
+                          <i className="fas fa-eye mr-1"></i>블라인드 해제
+                        </button>
+                      )}
                       {(isAdmin || !selectedPost.isAdmin) && (
                         <>
                           <button
