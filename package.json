@@ -2,8 +2,10 @@
   "name": "athletetime",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config vite.config.client.ts",
+    "dev:hono": "vite",
     "dev:pages": "wrangler pages dev dist --d1=athletetime-production --local --ip 0.0.0.0 --port 3000",
+    "dev:client": "vite --config vite.config.client.ts",
     "build": "vite build",
     "preview": "wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy",
@@ -20,7 +22,7 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.2",
-    "hono": "^4.9.5", 
+    "hono": "^4.9.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "zod": "^4.1.5"
@@ -30,6 +32,7 @@
     "@hono/vite-dev-server": "^0.18.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^5.0.3",
     "typescript": "^5.0.0",
     "vite": "^6.3.5",
     "wrangler": "^4.4.0"
