@@ -544,7 +544,7 @@
                         <button
                           onClick={(e) => {
                             const currentVote = getUserVote(post);
-                            handleVote(post.id, currentVote === 'like' ? null : 'like', e);
+                            handleVote(post.id, currentVote === 'like' ? 'cancel' : 'like', e);
                           }}
                           className={`px-2.5 py-1 rounded-l-full text-sm flex items-center ${
                             getUserVote(post) === 'like'
@@ -558,7 +558,7 @@
                         <button
                           onClick={(e) => {
                             const currentVote = getUserVote(post);
-                            handleVote(post.id, currentVote === 'dislike' ? null : 'dislike', e);
+                            handleVote(post.id, currentVote === 'dislike' ? 'cancel' : 'dislike', e);
                           }}
                           className={`px-2.5 py-1 rounded-r-full text-sm flex items-center border-l ${
                             getUserVote(post) === 'dislike'
@@ -727,7 +727,7 @@
                       <button
                         onClick={() => {
                           const currentVote = getUserVote(selectedPost);
-                          handleVote(selectedPost.id, currentVote === 'like' ? null : 'like');
+                          handleVote(selectedPost.id, currentVote === 'like' ? 'cancel' : 'like');
                         }}
                         className={`px-5 py-2.5 rounded-full flex items-center space-x-2 transition-colors ${
                           getUserVote(selectedPost) === 'like'
@@ -742,7 +742,7 @@
                       <button
                         onClick={() => {
                           const currentVote = getUserVote(selectedPost);
-                          handleVote(selectedPost.id, currentVote === 'dislike' ? null : 'dislike');
+                          handleVote(selectedPost.id, currentVote === 'dislike' ? 'cancel' : 'dislike');
                         }}
                         className={`px-5 py-2.5 rounded-full flex items-center space-x-2 transition-colors ${
                           getUserVote(selectedPost) === 'dislike'

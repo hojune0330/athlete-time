@@ -270,7 +270,7 @@ api.post('/posts/:id/vote', async (c) => {
   }
   
   const userId = body.userId;
-  const voteType = body.voteType; // 'like' or 'dislike'
+  const voteType = body.voteType; // 'like', 'dislike', or 'cancel'
   
   if (!post.likes) post.likes = [];
   if (!post.dislikes) post.dislikes = [];
@@ -285,6 +285,7 @@ api.post('/posts/:id/vote', async (c) => {
   } else if (voteType === 'dislike') {
     post.dislikes.push(userId);
   }
+  // If voteType is 'cancel' or null, just remove (already done above)
   
   return c.json({
     success: true,
