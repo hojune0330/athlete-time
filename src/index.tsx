@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { renderer } from './renderer'
 import { StaticAppV2 } from './components/StaticAppV2'
+import communityApi from './api/community-api'
 // Temporary: Comment out database-dependent routes for production deployment
 // import { communityRoutes } from './routes/community'
 // import { schedulesRoutes } from './routes/schedules'
@@ -55,8 +56,10 @@ app.get('/api/results/rankings/:eventName', (c) => {
   })
 })
 
+// Community API Routes (in-memory for beta)
+app.route('/api/community', communityApi)
+
 // API Routes (commented out for production deployment)
-// app.route('/api/community', communityRoutes)
 // app.route('/api/schedules', schedulesRoutes)  
 // app.route('/api/results', resultsRoutes)
 
