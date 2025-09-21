@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 import { renderer } from './renderer'
-import { StaticApp } from './components/StaticApp'
+import { StaticAppV2 } from './components/StaticAppV2'
 // Temporary: Comment out database-dependent routes for production deployment
 // import { communityRoutes } from './routes/community'
 // import { schedulesRoutes } from './routes/schedules'
@@ -56,7 +56,7 @@ app.get('/api/results/rankings/:eventName', (c) => {
 
 // Main landing page - Static JSX App with Client-side Interactions
 app.get('/', (c) => {
-  return c.render(<StaticApp />)
+  return c.render(<StaticAppV2 />)
 })
 
 export default app

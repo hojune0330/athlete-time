@@ -1,4 +1,4 @@
-// 인터랙티브 메인 애플리케이션
+// 인터랙티브 메인 애플리케이션 - 애슬리트 타임 v2.0
 import { useState, useEffect } from 'react'
 import { LoginModal } from './LoginModal'
 import { QuickShare } from './SocialShare'
@@ -9,6 +9,8 @@ export const InteractiveApp = () => {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [currentPage, setCurrentPage] = useState<'home' | 'community' | 'schedule' | 'results'>('home')
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
 
   // 컴포넌트 마운트 시 세션 확인
   useEffect(() => {
