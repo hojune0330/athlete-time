@@ -22,6 +22,11 @@ app.use('/api/*', cors())
 app.use('/static/*', serveStatic({ root: './public' }))
 app.use('/app', serveStatic({ root: './public/static', path: '/app.html' }))
 
+// Community page route
+app.get('/community', (c) => {
+  return c.html(require('fs').readFileSync('./community.html', 'utf-8'))
+})
+
 // Use JSX renderer for HTML pages
 app.use(renderer)
 
