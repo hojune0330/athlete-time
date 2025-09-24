@@ -23,36 +23,8 @@ app.use('/api/*', cors())
 app.use('/static/*', serveStatic({ root: './public' }))
 app.use('/app', serveStatic({ root: './public/static', path: '/app.html' }))
 
-// Serve mobile HTML files directly from dist
-app.get('/index-mobile.html', async (c) => {
-  const html = `<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Loading...</title>
-</head>
-<body>
-  <script>window.location.href = '/index-mobile.html';</script>
-</body>
-</html>`
-  return c.html(html)
-})
-
-app.get('/community-mobile.html', async (c) => {
-  const html = `<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Loading...</title>
-</head>
-<body>
-  <script>window.location.href = '/community-mobile.html';</script>
-</body>
-</html>`
-  return c.html(html)
-})
+// Let Cloudflare Pages serve static HTML files directly
+// These routes are removed because static files should be served by Pages, not Workers
 
 // Community page route
 app.get('/community', (c) => {
@@ -94,9 +66,21 @@ app.route('/api/community', communityApi)
 // app.route('/api/schedules', schedulesRoutes)  
 // app.route('/api/results', resultsRoutes)
 
-// Main landing page - redirect to mobile version
+// Main landing page - serve index.html that redirects to mobile
 app.get('/', (c) => {
-  return c.redirect('/index-mobile.html')
+  const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0; url=/index-mobile.html">
+  <title>애슬리트타임 - 육상 선수들을 위한 커뮤니티</title>
+</head>
+<body>
+  <script>window.location.replace('/index-mobile.html');</script>
+</body>
+</html>`
+  return c.html(html)
 })
 
 // Original desktop version (kept as fallback)
