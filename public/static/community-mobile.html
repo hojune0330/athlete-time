@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>애슬리트 타임 | 육상 커뮤니티</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: contain;
+    }
+    
+    /* iOS 안전영역 대응 */
+    .safe-top {
+      padding-top: env(safe-area-inset-top);
+    }
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    /* 스크롤 부드럽게 */
+    .smooth-scroll {
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    
+    /* 로딩 스피너 */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0,0,0,.1);
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* 바텀시트 애니메이션 */
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .slide-up {
+      animation: slideUp 0.3s ease-out;
+    }
+    
+    /* 터치 피드백 */
+    .touch-feedback {
+      transition: background-color 0.1s;
+    }
+    .touch-feedback:active {
+      background-color: rgba(0,0,0,0.05);
+    }
+    
+    /* 플로팅 버튼 그림자 */
+    .fab-shadow {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* 노치 대응 */
+    @supports (padding: max(0px)) {
+      .safe-top {
+        padding-top: max(12px, env(safe-area-inset-top));
+      }
+      .safe-bottom {
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+      }
+    }
+    
+    /* 스켈레톤 로딩 */
+    @keyframes skeleton {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: skeleton 1.5s infinite;
+    }
+    
+    /* 카테고리 스크롤 */
+    .category-scroll {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .category-scroll::-webkit-scrollbar {
+      display: none;
+    }
+    
+    /* 풀스크린 모달 */
+    .fullscreen-modal {
+      height: 100vh;
+      height: 100dvh;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+  
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+    
+    function MobileCommunity() {
+      // 상태 관리
+      const [posts, setPosts] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [selectedCategory, setSelectedCategory] = useState('전체');
+      const [showWriteSheet, setShowWriteSheet] = useState(false);
+      const [selectedPost, setSelectedPost] = useState(null);
+      const [searchTerm, setSearchTerm] = useState('');
+      const [showSearch, setShowSearch] = useState(false);
+      const [showMenu, setShowMenu] = useState(false);
+      const [isAdmin, setIsAdmin] = useState(false);
+      const [refreshing, setRefreshing] = useState(false);
+      const [showCategorySheet, setShowCategorySheet] = useState(false);
+      
+      // 사용자 ID
+      const [userId] = useState(() => {
+        let id = sessionStorage.getItem('athletetime_user_id');
+        if (!id) {
+          id = 'user_' + Math.random().toString(36).substr(2, 9);
+          sessionStorage.setItem('athletetime_user_id', id);
+        }
+        return id;
+      });
+      
+      // 새 게시물 폼
+      const [newPost, setNewPost] = useState({
+        category: '일반',
+        title: '',
+        author: '',
+        content: '',
+        password: ''
+      });
+
+      // 새 댓글 폼
+      const [newComment, setNewComment] = useState({
+        author: '',
+        content: ''
+      });
+
+      // 카테고리 목록
+      const categories = [
+        { name: '전체', icon: '🏠', color: 'blue' },
+        { name: '공지', icon: '📢', color: 'purple' },
+        { name: '대회', icon: '🏆', color: 'yellow' },
+        { name: '훈련', icon: '💪', color: 'green' },
+        { name: '장비', icon: '👟', color: 'orange' },
+        { name: '영양', icon: '🍎', color: 'red' },
+        { name: '부상/재활', icon: '🏥', color: 'pink' },
+        { name: '일반', icon: '💬', color: 'gray' },
+      ];
+
+      // API 기본 URL
+      const API_BASE = '/api/community';
+
+      // Pull to refresh 관련
+      const [touchStart, setTouchStart] = useState(0);
+      const [touchEnd, setTouchEnd] = useState(0);
+      const [isPulling, setIsPulling] = useState(false);
+      
+      // 게시물 불러오기
+      const fetchPosts = async (showLoader = true) => {
+        try {
+          if (showLoader) setLoading(true);
+          const response = await fetch(`${API_BASE}/posts`);
+          const data = await response.json();
+          if (data.success) {
+            setPosts(data.posts);
+          }
+        } catch (error) {
+          console.error('Failed to fetch posts:', error);
+        } finally {
+          setLoading(false);
+          setRefreshing(false);
+          setIsPulling(false);
+        }
+      };
+
+      // 초기 로드
+      useEffect(() => {
+        fetchPosts();
+        const interval = setInterval(() => fetchPosts(false), 10000);
+        return () => clearInterval(interval);
+      }, []);
+
+      // Pull to refresh 핸들러
+      const handleTouchStart = (e) => {
+        setTouchStart(e.touches[0].clientY);
+      };
+
+      const handleTouchMove = (e) => {
+        const currentTouch = e.touches[0].clientY;
+        const pull = currentTouch - touchStart;
+        
+        if (pull > 50 && window.scrollY === 0) {
+          setIsPulling(true);
+        }
+        
+        setTouchEnd(currentTouch);
+      };
+
+      const handleTouchEnd = () => {
+        if (isPulling) {
+          setRefreshing(true);
+          fetchPosts(false);
+        }
+        setIsPulling(false);
+      };
+
+      // 게시물 필터링
+      const filteredPosts = posts
+        .filter(post => isAdmin || !post.isBlinded)
+        .filter(post => selectedCategory === '전체' || post.category === selectedCategory)
+        .filter(post => 
+          searchTerm === '' || 
+          post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          post.content.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+      // 게시물 작성
+      const handleSubmitPost = async () => {
+        if (!newPost.title || !newPost.content || !newPost.password) {
+          alert('제목, 내용, 비밀번호는 필수입니다.');
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/posts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newPost)
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            setNewPost({
+              category: '일반',
+              title: '',
+              author: '',
+              content: '',
+              password: ''
+            });
+            setShowWriteSheet(false);
+            fetchPosts();
+          } else {
+            alert(data.error || '작성 실패');
+          }
+        } catch (error) {
+          alert('오류가 발생했습니다.');
+        }
+      };
+
+      // 댓글 작성
+      const handleSubmitComment = async (postId) => {
+        if (!newComment.content) {
+          alert('댓글 내용을 입력하세요.');
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newComment)
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            setNewComment({ author: '', content: '' });
+            fetchPosts();
+            const updatedPost = posts.find(p => p.id === postId);
+            if (updatedPost) {
+              setSelectedPost({...updatedPost});
+            }
+          }
+        } catch (error) {
+          alert('댓글 작성 실패');
+        }
+      };
+
+      // 게시물 신고
+      const handleReportPost = async (postId) => {
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}/report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            alert(`신고 접수 (${data.reportCount}/10)`);
+            if (data.isBlinded) {
+              alert('블라인드 처리되었습니다.');
+              setSelectedPost(null);
+            }
+            fetchPosts();
+          } else {
+            alert(data.error);
+          }
+        } catch (error) {
+          alert('신고 실패');
+        }
+      };
+
+      // 추천/비추천 투표
+      const handleVote = async (postId, voteType, e) => {
+        e?.stopPropagation();
+        
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}/vote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, voteType })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            fetchPosts(false);
+          }
+        } catch (error) {
+          console.error('Failed to vote:', error);
+        }
+      };
+      
+      // 현재 사용자의 투표 상태 확인
+      const getUserVote = (post) => {
+        if (post.likes?.includes(userId)) return 'like';
+        if (post.dislikes?.includes(userId)) return 'dislike';
+        return null;
+      };
+
+      // 날짜 포맷
+      const formatDate = (dateStr) => {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (minutes < 1) return '방금';
+        if (minutes < 60) return `${minutes}분 전`;
+        if (hours < 24) return `${hours}시간 전`;
+        if (days < 7) return `${days}일 전`;
+        return date.toLocaleDateString('ko-KR').slice(5, -1);
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-50">
+          {/* 상단 헤더 - 고정 */}
+          <header className="fixed top-0 left-0 right-0 bg-white border-b z-40 safe-top">
+            <div className="flex items-center justify-between h-14 px-4">
+              <div className="flex items-center space-x-3">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
+                  애슬리트 타임
+                </h1>
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">
+                  BETA
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowSearch(!showSearch)}
+                  className="p-2 touch-feedback rounded-lg"
+                >
+                  <i className="fas fa-search text-gray-600"></i>
+                </button>
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="p-2 touch-feedback rounded-lg"
+                >
+                  <i className="fas fa-ellipsis-v text-gray-600"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* 검색바 */}
+            {showSearch && (
+              <div className="px-4 pb-3 bg-white border-b">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="게시물 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-10 py-2 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  <i className="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-2.5 text-gray-400"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 카테고리 탭 - 가로 스크롤 */}
+            <div className="bg-white border-b">
+              <div className="category-scroll overflow-x-auto">
+                <div className="flex px-4 py-2 space-x-2 min-w-max">
+                  {categories.map(cat => (
+                    <button
+                      key={cat.name}
+                      onClick={() => setSelectedCategory(cat.name)}
+                      className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+                        selectedCategory === cat.name
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      <span className="mr-1">{cat.icon}</span>
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Pull to refresh 인디케이터 */}
+          {(isPulling || refreshing) && (
+            <div className="fixed top-20 left-0 right-0 flex justify-center z-30 safe-top">
+              <div className="bg-white rounded-full shadow-lg px-3 py-2 flex items-center space-x-2">
+                <div className="loading"></div>
+                <span className="text-sm">새로고침 중...</span>
+              </div>
+            </div>
+          )}
+
+          {/* 메인 컨텐츠 - 스크롤 영역 */}
+          <main 
+            className="pt-32 pb-20 px-4 min-h-screen"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {loading && posts.length === 0 ? (
+              // 스켈레톤 로딩
+              <div className="space-y-3">
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} className="bg-white rounded-lg p-4 space-y-2">
+                    <div className="skeleton h-4 w-20 rounded"></div>
+                    <div className="skeleton h-5 w-3/4 rounded"></div>
+                    <div className="skeleton h-4 w-full rounded"></div>
+                    <div className="skeleton h-3 w-1/2 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <i className="fas fa-inbox text-5xl text-gray-300 mb-4"></i>
+                <p className="text-gray-500 mb-4">게시물이 없습니다</p>
+                <button
+                  onClick={() => setShowWriteSheet(true)}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-full"
+                >
+                  첫 게시물 작성하기
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredPosts.map(post => (
+                  <div
+                    key={post.id}
+                    onClick={() => setSelectedPost(post)}
+                    className="bg-white rounded-lg p-4 touch-feedback"
+                  >
+                    {/* 카테고리 & 메타 정보 */}
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className={`px-2 py-0.5 text-xs rounded-full ${
+                        post.category === '공지' ? 'bg-purple-100 text-purple-700' :
+                        post.category === '대회' ? 'bg-yellow-100 text-yellow-700' :
+                        post.category === '훈련' ? 'bg-green-100 text-green-700' :
+                        post.category === '장비' ? 'bg-orange-100 text-orange-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {post.category}
+                      </span>
+                      {post.isAdmin && (
+                        <span className="px-2 py-0.5 text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full">
+                          관리자
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-500">{post.author}</span>
+                      <span className="text-xs text-gray-400">·</span>
+                      <span className="text-xs text-gray-500">{formatDate(post.date)}</span>
+                    </div>
+                    
+                    {/* 제목 */}
+                    <h3 className="font-medium text-gray-900 mb-2">
+                      {post.title}
+                      {post.comments && post.comments.length > 0 && (
+                        <span className="ml-1 text-sm text-blue-500">
+                          [{post.comments.length}]
+                        </span>
+                      )}
+                    </h3>
+                    
+                    {/* 내용 미리보기 */}
+                    <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                      {post.content}
+                    </p>
+                    
+                    {/* 하단 액션 */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <span>
+                          <i className="fas fa-eye mr-1"></i>
+                          {post.views}
+                        </span>
+                        <span>
+                          <i className="fas fa-comment mr-1"></i>
+                          {post.comments?.length || 0}
+                        </span>
+                        {((post.likes?.length || 0) + (post.dislikes?.length || 0)) > 0 && (
+                          <span className="text-blue-600">
+                            <i className="fas fa-thumbs-up mr-1"></i>
+                            {Math.round((post.likes?.length || 0) / ((post.likes?.length || 0) + (post.dislikes?.length || 0)) * 100)}%
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={(e) => {
+                            const currentVote = getUserVote(post);
+                            handleVote(post.id, currentVote === 'like' ? 'cancel' : 'like', e);
+                          }}
+                          className={`px-2.5 py-1 rounded-l-full text-sm flex items-center ${
+                            getUserVote(post) === 'like'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          <i className="fas fa-thumbs-up mr-1"></i>
+                          <span>{post.likes?.length || 0}</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            const currentVote = getUserVote(post);
+                            handleVote(post.id, currentVote === 'dislike' ? 'cancel' : 'dislike', e);
+                          }}
+                          className={`px-2.5 py-1 rounded-r-full text-sm flex items-center border-l ${
+                            getUserVote(post) === 'dislike'
+                              ? 'bg-red-500 text-white border-red-600'
+                              : 'bg-gray-100 text-gray-600 border-gray-200'
+                          }`}
+                        >
+                          <i className="fas fa-thumbs-down mr-1"></i>
+                          <span>{post.dislikes?.length || 0}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </main>
+
+          {/* 플로팅 작성 버튼 */}
+          <button
+            onClick={() => setShowWriteSheet(true)}
+            className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full flex items-center justify-center fab-shadow safe-bottom"
+          >
+            <i className="fas fa-pen text-lg"></i>
+          </button>
+
+          {/* 글쓰기 바텀시트 */}
+          {showWriteSheet && (
+            <div className="fixed inset-0 z-50 bg-black bg-opacity-50">
+              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl slide-up fullscreen-modal">
+                <div className="flex flex-col h-full">
+                  {/* 헤더 */}
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <button
+                      onClick={() => setShowWriteSheet(false)}
+                      className="text-gray-500"
+                    >
+                      취소
+                    </button>
+                    <h2 className="font-bold">게시물 작성</h2>
+                    <button
+                      onClick={handleSubmitPost}
+                      className="text-blue-500 font-medium"
+                    >
+                      완료
+                    </button>
+                  </div>
+                  
+                  {/* 폼 */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">카테고리</label>
+                        <select
+                          value={newPost.category}
+                          onChange={(e) => setNewPost({...newPost, category: e.target.value})}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        >
+                          {categories.filter(c => c.name !== '전체' && c.name !== '공지').map(cat => (
+                            <option key={cat.name} value={cat.name}>{cat.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="text-xs text-gray-600 mb-1 block">작성자</label>
+                        <input
+                          type="text"
+                          placeholder="익명"
+                          value={newPost.author}
+                          onChange={(e) => setNewPost({...newPost, author: e.target.value})}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">
+                        제목 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="제목을 입력하세요"
+                        value={newPost.title}
+                        onChange={(e) => setNewPost({...newPost, title: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">
+                        내용 <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        rows="8"
+                        placeholder="내용을 입력하세요"
+                        value={newPost.content}
+                        onChange={(e) => setNewPost({...newPost, content: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs text-gray-600 mb-1 block">
+                        비밀번호 <span className="text-red-500">*</span>
+                        <span className="ml-1 text-gray-400">(수정/삭제용)</span>
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="비밀번호"
+                        value={newPost.password}
+                        onChange={(e) => setNewPost({...newPost, password: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* 하단 여백 (iOS 키보드 대응) */}
+                  <div className="safe-bottom"></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 게시물 상세 모달 */}
+          {selectedPost && (
+            <div className="fixed inset-0 z-50 bg-white fullscreen-modal">
+              <div className="flex flex-col h-full">
+                {/* 상단 헤더 */}
+                <header className="flex items-center justify-between p-4 border-b safe-top">
+                  <button
+                    onClick={() => setSelectedPost(null)}
+                    className="p-2 -m-2"
+                  >
+                    <i className="fas fa-arrow-left text-gray-700"></i>
+                  </button>
+                  <h2 className="font-medium">{selectedPost.category}</h2>
+                  <button
+                    onClick={() => handleReportPost(selectedPost.id)}
+                    className="p-2 -m-2"
+                  >
+                    <i className="fas fa-flag text-gray-500"></i>
+                  </button>
+                </header>
+                
+                {/* 콘텐츠 영역 */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-4">
+                    {/* 제목 */}
+                    <h1 className="text-xl font-bold mb-3">{selectedPost.title}</h1>
+                    
+                    {/* 메타 정보 */}
+                    <div className="flex items-center space-x-3 text-sm text-gray-500 mb-4 pb-4 border-b">
+                      <span className="font-medium">{selectedPost.author}</span>
+                      <span>{formatDate(selectedPost.date)}</span>
+                      <span><i className="fas fa-eye mr-1"></i>{selectedPost.views}</span>
+                    </div>
+                    
+                    {/* 본문 */}
+                    <div className="text-gray-800 mb-6 whitespace-pre-wrap">
+                      {selectedPost.content}
+                    </div>
+                    
+                    {/* 추천/비추천 버튼 */}
+                    <div className="flex justify-center py-4 space-x-3">
+                      <button
+                        onClick={() => {
+                          const currentVote = getUserVote(selectedPost);
+                          handleVote(selectedPost.id, currentVote === 'like' ? 'cancel' : 'like');
+                        }}
+                        className={`px-5 py-2.5 rounded-full flex items-center space-x-2 transition-colors ${
+                          getUserVote(selectedPost) === 'like'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        <i className="fas fa-thumbs-up"></i>
+                        <span className="font-medium">{selectedPost.likes?.length || 0}</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          const currentVote = getUserVote(selectedPost);
+                          handleVote(selectedPost.id, currentVote === 'dislike' ? 'cancel' : 'dislike');
+                        }}
+                        className={`px-5 py-2.5 rounded-full flex items-center space-x-2 transition-colors ${
+                          getUserVote(selectedPost) === 'dislike'
+                            ? 'bg-red-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        <i className="fas fa-thumbs-down"></i>
+                        <span className="font-medium">{selectedPost.dislikes?.length || 0}</span>
+                      </button>
+                    </div>
+                    
+                    {/* 투표 비율 바 */}
+                    {(selectedPost.likes?.length > 0 || selectedPost.dislikes?.length > 0) && (
+                      <div className="px-4 pb-4">
+                        <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
+                          <div className="flex h-full">
+                            <div 
+                              className="bg-blue-500 transition-all"
+                              style={{
+                                width: `${(selectedPost.likes?.length || 0) / ((selectedPost.likes?.length || 0) + (selectedPost.dislikes?.length || 0)) * 100}%`
+                              }}
+                            />
+                            <div 
+                              className="bg-red-500 transition-all"
+                              style={{
+                                width: `${(selectedPost.dislikes?.length || 0) / ((selectedPost.likes?.length || 0) + (selectedPost.dislikes?.length || 0)) * 100}%`
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>추천 {Math.round((selectedPost.likes?.length || 0) / ((selectedPost.likes?.length || 0) + (selectedPost.dislikes?.length || 0)) * 100)}%</span>
+                          <span>비추천 {Math.round((selectedPost.dislikes?.length || 0) / ((selectedPost.likes?.length || 0) + (selectedPost.dislikes?.length || 0)) * 100)}%</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* 댓글 섹션 */}
+                    <div className="border-t pt-4">
+                      <h3 className="font-bold mb-4">
+                        댓글 {selectedPost.comments?.length || 0}
+                      </h3>
+                      
+                      {/* 댓글 목록 */}
+                      <div className="space-y-3 mb-4">
+                        {selectedPost.comments?.map(comment => (
+                          <div key={comment.id} className={`p-3 rounded-lg ${
+                            comment.isBlinded ? 'bg-gray-100' : 'bg-gray-50'
+                          }`}>
+                            {comment.isBlinded ? (
+                              <p className="text-gray-500 text-sm italic">
+                                <i className="fas fa-eye-slash mr-2"></i>
+                                블라인드된 댓글입니다
+                              </p>
+                            ) : (
+                              <>
+                                <div className="flex justify-between items-start mb-1">
+                                  <span className="font-medium text-sm">{comment.author}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {formatDate(comment.date)}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-700">{comment.content}</p>
+                              </>
+                            )}
+                          </div>
+                        )) || (
+                          <p className="text-center text-gray-400 py-8">
+                            첫 댓글을 작성해보세요!
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 댓글 입력창 */}
+                <div className="border-t bg-white p-4 safe-bottom">
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="댓글을 입력하세요..."
+                      value={newComment.content}
+                      onChange={(e) => setNewComment({...newComment, content: e.target.value})}
+                      className="flex-1 px-3 py-2 bg-gray-100 rounded-full text-sm"
+                    />
+                    <button
+                      onClick={() => handleSubmitComment(selectedPost.id)}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-full text-sm"
+                    >
+                      전송
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 메뉴 드롭다운 */}
+          {showMenu && (
+            <>
+              <div 
+                className="fixed inset-0 z-30"
+                onClick={() => setShowMenu(false)}
+              />
+              <div className="fixed top-16 right-4 bg-white rounded-lg shadow-lg z-40 w-48">
+                <button
+                  onClick={() => {
+                    setIsAdmin(!isAdmin);
+                    setShowMenu(false);
+                    if (!isAdmin) {
+                      const pwd = prompt('관리자 비밀번호:');
+                      if (pwd !== 'admin2025') {
+                        alert('비밀번호가 틀렸습니다');
+                        return;
+                      }
+                    }
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 border-b"
+                >
+                  <i className="fas fa-shield-alt mr-2"></i>
+                  {isAdmin ? '일반 모드' : '관리자 모드'}
+                </button>
+                <button
+                  onClick={() => {
+                    fetchPosts();
+                    setShowMenu(false);
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50"
+                >
+                  <i className="fas fa-sync mr-2"></i>
+                  새로고침
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // 앱 렌더링
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<MobileCommunity />);
+  </script>
+</body>
+</html>
