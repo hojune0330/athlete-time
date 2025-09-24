@@ -4,40 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>애슬리트 타임 | 한국 육상인 통합 플랫폼</title>
-  <meta name="description" content="초중고대실업마스터즈 육상 경기 시간표와 익명 커뮤니티">
-  
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-  
-  <!-- Custom CSS -->
   <style>
     @keyframes gradient {
       0% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
     }
-    
-    @keyframes pulse-slow {
-      0%, 100% { opacity: 0.3; }
-      50% { opacity: 0.5; }
-    }
-    
     .animate-gradient {
       animation: gradient 3s ease infinite;
       background-size: 300% 300%;
     }
-    
-    .animate-pulse-slow {
-      animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    .bg-300\% {
+      background-size: 300% 300%;
     }
-    
     .animation-delay-2000 {
       animation-delay: 2s;
     }
-    
     .animation-delay-4000 {
       animation-delay: 4s;
     }
@@ -45,12 +29,6 @@
 </head>
 <body>
   <div id="root"></div>
-  
-  <!-- React and ReactDOM from CDN -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  
-  <!-- Build output will be injected here -->
   <script type="module" src="/src/client.tsx"></script>
 </body>
 </html>

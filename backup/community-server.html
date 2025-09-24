@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>애슬리트 타임 | 베타 커뮤니티</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', sans-serif; }
+    .post-row:hover { background-color: #f8f9fa; }
+    .notice-post { background-color: #e3f2fd; }
+    .blinded { 
+      color: #999; 
+      font-style: italic;
+      background-color: #f5f5f5;
+      padding: 8px;
+      border-radius: 4px;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+    .admin-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0,0,0,.1);
+      border-radius: 50%;
+      border-top-color: #3b82f6;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <div id="root"></div>
+  
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    
+    function CommunityBeta() {
+      // API 기반 상태 관리
+      const [posts, setPosts] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [selectedCategory, setSelectedCategory] = useState('전체');
+      const [showWriteModal, setShowWriteModal] = useState(false);
+      const [selectedPost, setSelectedPost] = useState(null);
+      const [searchTerm, setSearchTerm] = useState('');
+      const [sortBy, setSortBy] = useState('latest');
+      const [showAdminModal, setShowAdminModal] = useState(false);
+      const [adminPassword, setAdminPassword] = useState('');
+      const [isAdmin, setIsAdmin] = useState(false);
+      const [refreshKey, setRefreshKey] = useState(0);
+      
+      // 사용자 ID (세션별 고유값)
+      const [userId] = useState(() => {
+        let id = sessionStorage.getItem('athletetime_user_id');
+        if (!id) {
+          id = 'user_' + Math.random().toString(36).substr(2, 9);
+          sessionStorage.setItem('athletetime_user_id', id);
+        }
+        return id;
+      });
+      
+      // 새 게시물 작성 폼
+      const [newPost, setNewPost] = useState({
+        category: '일반',
+        title: '',
+        author: '',
+        content: '',
+        password: '',
+        attachments: []
+      });
+
+      // 댓글 작성 폼
+      const [newComment, setNewComment] = useState({
+        author: '',
+        content: ''
+      });
+
+      // 카테고리 목록
+      const categories = [
+        { name: '전체', icon: 'fa-home', color: 'blue' },
+        { name: '공지', icon: 'fa-bullhorn', color: 'purple' },
+        { name: '대회', icon: 'fa-trophy', color: 'yellow' },
+        { name: '훈련', icon: 'fa-dumbbell', color: 'green' },
+        { name: '장비', icon: 'fa-shoe-prints', color: 'orange' },
+        { name: '영양', icon: 'fa-apple-alt', color: 'red' },
+        { name: '부상/재활', icon: 'fa-medkit', color: 'pink' },
+        { name: '일반', icon: 'fa-comment', color: 'gray' },
+      ];
+
+      // API URL
+      const API_BASE = '/api/community';
+
+      // 게시물 목록 불러오기
+      const fetchPosts = async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`${API_BASE}/posts`);
+          const data = await response.json();
+          if (data.success) {
+            setPosts(data.posts);
+          }
+        } catch (error) {
+          console.error('Failed to fetch posts:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // 초기 로드 및 새로고침
+      useEffect(() => {
+        fetchPosts();
+        // 5초마다 자동 새로고침
+        const interval = setInterval(fetchPosts, 5000);
+        return () => clearInterval(interval);
+      }, [refreshKey]);
+
+      // 게시물 필터링
+      const filteredPosts = posts
+        .filter(post => isAdmin || !post.isBlinded) // 관리자는 블라인드 게시물도 볼 수 있음
+        .filter(post => selectedCategory === '전체' || post.category === selectedCategory)
+        .filter(post => 
+          post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          post.author.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .sort((a, b) => {
+          if (sortBy === 'latest') return new Date(b.date) - new Date(a.date);
+          if (sortBy === 'popular') return b.views - a.views;
+          if (sortBy === 'likes') return b.likes.length - a.likes.length;
+          if (sortBy === 'comments') return b.comments.length - a.comments.length;
+          return 0;
+        });
+
+      // 게시물 작성
+      const handleSubmitPost = async () => {
+        if (!newPost.title || !newPost.content || !newPost.password) {
+          alert('제목, 내용, 비밀번호는 필수입니다.');
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/posts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newPost)
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            setNewPost({
+              category: '일반',
+              title: '',
+              author: '',
+              content: '',
+              password: '',
+              attachments: []
+            });
+            setShowWriteModal(false);
+            fetchPosts(); // 목록 새로고침
+          } else {
+            alert(data.error || '게시물 작성에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Failed to create post:', error);
+          alert('게시물 작성 중 오류가 발생했습니다.');
+        }
+      };
+
+      // 게시물 삭제
+      const handleDeletePost = async (postId) => {
+        const post = posts.find(p => p.id === postId);
+        if (!post) return;
+
+        let password = '';
+        if (isAdmin) {
+          if (!confirm('관리자 권한으로 삭제하시겠습니까?')) return;
+        } else {
+          password = prompt('게시물 비밀번호를 입력하세요:');
+          if (!password) return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password, isAdmin })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            setSelectedPost(null);
+            fetchPosts();
+          } else {
+            alert(data.error || '삭제에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Failed to delete post:', error);
+          alert('삭제 중 오류가 발생했습니다.');
+        }
+      };
+
+      // 게시물 수정
+      const handleEditPost = async (postId) => {
+        const post = posts.find(p => p.id === postId);
+        if (!post) return;
+
+        let password = '';
+        let newContent = '';
+        
+        if (isAdmin) {
+          newContent = prompt('수정할 내용을 입력하세요:', post.content);
+        } else {
+          password = prompt('게시물 비밀번호를 입력하세요:');
+          if (!password) return;
+          newContent = prompt('수정할 내용을 입력하세요:', post.content);
+        }
+        
+        if (!newContent) return;
+
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: newContent, password, isAdmin })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            fetchPosts();
+            if (selectedPost?.id === postId) {
+              setSelectedPost(data.post);
+            }
+          } else {
+            alert(data.error || '수정에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Failed to edit post:', error);
+          alert('수정 중 오류가 발생했습니다.');
+        }
+      };
+
+      // 댓글 작성
+      const handleSubmitComment = async (postId) => {
+        if (!newComment.content) {
+          alert('댓글 내용을 입력하세요.');
+          return;
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newComment)
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            setNewComment({ author: '', content: '' });
+            fetchPosts();
+            // 선택된 게시물 업데이트
+            const updatedPost = posts.find(p => p.id === postId);
+            if (updatedPost) {
+              setSelectedPost({...updatedPost});
+            }
+          } else {
+            alert(data.error || '댓글 작성에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Failed to create comment:', error);
+          alert('댓글 작성 중 오류가 발생했습니다.');
+        }
+      };
+
+      // 댓글 신고
+      const handleReportComment = async (postId, commentId) => {
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            alert(`신고가 접수되었습니다. (${data.reportCount}/10)`);
+            if (data.isBlinded) {
+              alert('신고가 누적되어 댓글이 블라인드 처리되었습니다.');
+            }
+            fetchPosts();
+          } else {
+            alert(data.error || '신고에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Failed to report comment:', error);
+          alert('신고 중 오류가 발생했습니다.');
+        }
+      };
+
+      // 댓글 삭제 (관리자 전용)
+      const handleDeleteComment = async (postId, commentId) => {
+        if (!isAdmin) return;
+        
+        if (!confirm('댓글을 삭제하시겠습니까?')) return;
+
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isAdmin })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            fetchPosts();
+          } else {
+            alert(data.error || '삭제에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Failed to delete comment:', error);
+          alert('삭제 중 오류가 발생했습니다.');
+        }
+      };
+
+      // 좋아요
+      const handleLike = async (postId) => {
+        const post = posts.find(p => p.id === postId);
+        if (!post) return;
+
+        const likes = post.likes || [];
+        const newLikes = likes.includes(userId)
+          ? likes.filter(l => l !== userId)
+          : [...likes, userId];
+
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ likes: newLikes })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            fetchPosts();
+          }
+        } catch (error) {
+          console.error('Failed to update likes:', error);
+        }
+      };
+
+      // 게시물 신고
+      const handleReportPost = async (postId) => {
+        try {
+          const response = await fetch(`${API_BASE}/posts/${postId}/report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            alert(`신고가 접수되었습니다. (${data.reportCount}/10)`);
+            if (data.isBlinded) {
+              alert('신고가 누적되어 게시물이 블라인드 처리되었습니다.');
+              setSelectedPost(null);
+            }
+            fetchPosts();
+          } else {
+            alert(data.error || '신고에 실패했습니다.');
+          }
+        } catch (error) {
+          console.error('Failed to report post:', error);
+          alert('신고 중 오류가 발생했습니다.');
+        }
+      };
+
+      // 조회수 증가
+      const incrementViews = async (postId) => {
+        try {
+          await fetch(`${API_BASE}/posts/${postId}`);
+          fetchPosts();
+        } catch (error) {
+          console.error('Failed to increment views:', error);
+        }
+      };
+
+      // 관리자 로그인
+      const handleAdminLogin = () => {
+        if (adminPassword === 'admin2025') {
+          setIsAdmin(true);
+          setShowAdminModal(false);
+          setAdminPassword('');
+          alert('관리자 로그인 성공');
+        } else {
+          alert('비밀번호가 틀렸습니다.');
+        }
+      };
+
+      // 날짜 포맷팅
+      const formatDate = (dateStr) => {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        
+        if (minutes < 1) return '방금';
+        if (minutes < 60) return `${minutes}분 전`;
+        if (hours < 24) return `${hours}시간 전`;
+        if (days < 7) return `${days}일 전`;
+        return date.toLocaleDateString('ko-KR');
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-50">
+          {/* 헤더 */}
+          <header className="bg-white shadow-sm border-b sticky top-0 z-40">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="flex items-center justify-between h-16">
+                <div className="flex items-center space-x-4">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
+                    애슬리트 타임
+                  </h1>
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full font-medium">
+                    BETA (~11/30)
+                  </span>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => {
+                      setRefreshKey(k => k + 1);
+                    }}
+                    className="p-2 text-gray-600 hover:text-gray-800"
+                    title="새로고침"
+                  >
+                    <i className={`fas fa-sync ${loading ? 'fa-spin' : ''}`}></i>
+                  </button>
+                  
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="검색..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <i className="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                  </div>
+                  
+                  <button
+                    onClick={() => setShowWriteModal(true)}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    <i className="fas fa-pen mr-2"></i>
+                    글쓰기
+                  </button>
+                  
+                  {isAdmin ? (
+                    <span className="px-3 py-1 admin-badge text-white text-sm rounded-full">
+                      <i className="fas fa-shield-alt mr-1"></i>
+                      관리자
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setShowAdminModal(true)}
+                      className="p-2 text-gray-600 hover:text-gray-800"
+                      title="관리자 로그인"
+                    >
+                      <i className="fas fa-user-shield"></i>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex gap-6">
+              {/* 사이드바 - 카테고리 */}
+              <aside className="w-64 flex-shrink-0">
+                <div className="bg-white rounded-lg shadow-sm p-4">
+                  <h3 className="font-bold mb-4">카테고리</h3>
+                  <div className="space-y-2">
+                    {categories.map(cat => (
+                      <button
+                        key={cat.name}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                          selectedCategory === cat.name
+                            ? 'bg-blue-50 text-blue-600'
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <i className={`fas ${cat.icon} mr-2 text-${cat.color}-500`}></i>
+                        {cat.name}
+                        <span className="float-right text-sm text-gray-500">
+                          {posts.filter(p => cat.name === '전체' || p.category === cat.name).length}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 베타 안내 */}
+                <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4 mt-4">
+                  <h4 className="font-bold text-sm mb-2">
+                    <i className="fas fa-info-circle mr-1"></i>
+                    베타 테스트 안내
+                  </h4>
+                  <p className="text-xs text-gray-600">
+                    현재 익명 게시판으로 운영 중입니다. 
+                    게시물 작성 시 비밀번호를 설정하여 수정/삭제가 가능합니다.
+                  </p>
+                  <div className="mt-3 text-xs">
+                    <div className="flex justify-between">
+                      <span>베타 종료</span>
+                      <span className="font-bold">2025.11.30</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 p-2 bg-green-100 rounded text-xs text-green-700">
+                    <i className="fas fa-check-circle mr-1"></i>
+                    실시간 동기화 활성화
+                  </div>
+                </div>
+              </aside>
+
+              {/* 메인 컨텐츠 */}
+              <main className="flex-1">
+                {/* 정렬 옵션 */}
+                <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex space-x-2">
+                      {[
+                        { value: 'latest', label: '최신순', icon: 'fa-clock' },
+                        { value: 'popular', label: '조회순', icon: 'fa-eye' },
+                        { value: 'likes', label: '추천순', icon: 'fa-heart' },
+                        { value: 'comments', label: '댓글순', icon: 'fa-comment' }
+                      ].map(sort => (
+                        <button
+                          key={sort.value}
+                          onClick={() => setSortBy(sort.value)}
+                          className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                            sortBy === sort.value
+                              ? 'bg-blue-100 text-blue-600'
+                              : 'hover:bg-gray-100'
+                          }`}
+                        >
+                          <i className={`fas ${sort.icon} mr-1 text-xs`}></i>
+                          {sort.label}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <div className="text-sm text-gray-500">
+                      {loading ? (
+                        <span className="loading"></span>
+                      ) : (
+                        `총 ${filteredPosts.length}개의 게시물`
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 게시물 목록 */}
+                <div className="bg-white rounded-lg shadow-sm">
+                  {loading && posts.length === 0 ? (
+                    <div className="p-20 text-center">
+                      <div className="loading mx-auto mb-4"></div>
+                      <p className="text-gray-500">게시물을 불러오는 중...</p>
+                    </div>
+                  ) : filteredPosts.length === 0 ? (
+                    <div className="p-20 text-center text-gray-500">
+                      <i className="fas fa-inbox text-4xl mb-4"></i>
+                      <p>게시물이 없습니다.</p>
+                      <button
+                        onClick={() => setShowWriteModal(true)}
+                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                      >
+                        첫 게시물 작성하기
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {filteredPosts.map(post => (
+                        <div
+                          key={post.id}
+                          className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                            post.isNotice ? 'notice-post' : 
+                            post.isBlinded && isAdmin ? 'bg-red-50 border-l-4 border-red-500' : ''
+                          }`}
+                          onClick={() => {
+                            setSelectedPost(post);
+                            incrementViews(post.id);
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className={`px-2 py-0.5 text-xs rounded ${
+                                  post.category === '공지' ? 'bg-purple-100 text-purple-700' :
+                                  post.category === '대회' ? 'bg-yellow-100 text-yellow-700' :
+                                  post.category === '훈련' ? 'bg-green-100 text-green-700' :
+                                  post.category === '장비' ? 'bg-orange-100 text-orange-700' :
+                                  post.category === '영양' ? 'bg-red-100 text-red-700' :
+                                  post.category === '부상/재활' ? 'bg-pink-100 text-pink-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {post.category}
+                                </span>
+                                {post.isAdmin && (
+                                  <span className="px-2 py-0.5 text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded">
+                                    관리자
+                                  </span>
+                                )}
+                                {post.isBlinded && isAdmin && (
+                                  <span className="px-2 py-0.5 text-xs bg-red-600 text-white rounded">
+                                    <i className="fas fa-eye-slash mr-1"></i>블라인드
+                                  </span>
+                                )}
+                                {post.editedAt && (
+                                  <span className="text-xs text-gray-500">(수정됨)</span>
+                                )}
+                              </div>
+                              
+                              <h3 className="font-medium text-gray-900 mb-1">
+                                {post.title}
+                                {post.comments && post.comments.length > 0 && (
+                                  <span className="ml-2 text-sm text-blue-500">
+                                    [{post.comments.length}]
+                                  </span>
+                                )}
+                              </h3>
+                              
+                              <div className="flex items-center space-x-3 text-sm text-gray-500">
+                                <span>{post.author}</span>
+                                <span>·</span>
+                                <span>{formatDate(post.date)}</span>
+                                <span>·</span>
+                                <span><i className="fas fa-eye mr-1"></i>{post.views}</span>
+                                <span>·</span>
+                                <span><i className="fas fa-heart mr-1"></i>{post.likes?.length || 0}</span>
+                                {post.reports && post.reports.length > 0 && (
+                                  <>
+                                    <span>·</span>
+                                    <span className="text-orange-500">
+                                      <i className="fas fa-flag mr-1"></i>{post.reports.length}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {post.attachments && post.attachments.length > 0 && (
+                              <i className="fas fa-paperclip text-gray-400 ml-4"></i>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </main>
+            </div>
+          </div>
+
+          {/* 게시물 작성 모달 */}
+          {showWriteModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto slide-in">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold">게시물 작성</h2>
+                    <button
+                      onClick={() => setShowWriteModal(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <i className="fas fa-times text-xl"></i>
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          카테고리
+                        </label>
+                        <select
+                          value={newPost.category}
+                          onChange={(e) => setNewPost({...newPost, category: e.target.value})}
+                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {categories.filter(c => c.name !== '전체' && c.name !== '공지').map(cat => (
+                            <option key={cat.name} value={cat.name}>{cat.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          작성자 (선택)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="익명"
+                          value={newPost.author}
+                          onChange={(e) => setNewPost({...newPost, author: e.target.value})}
+                          className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        제목 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="제목을 입력하세요"
+                        value={newPost.title}
+                        onChange={(e) => setNewPost({...newPost, title: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        내용 <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        rows="10"
+                        placeholder="내용을 입력하세요"
+                        value={newPost.content}
+                        onChange={(e) => setNewPost({...newPost, content: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        비밀번호 <span className="text-red-500">*</span>
+                        <span className="ml-2 text-xs text-gray-500">
+                          (수정/삭제 시 필요)
+                        </span>
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="비밀번호를 입력하세요"
+                        value={newPost.password}
+                        onChange={(e) => setNewPost({...newPost, password: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <button
+                      onClick={() => setShowWriteModal(false)}
+                      className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleSubmitPost}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    >
+                      작성하기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 게시물 상세 모달 */}
+          {selectedPost && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto slide-in">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        selectedPost.category === '공지' ? 'bg-purple-100 text-purple-700' :
+                        selectedPost.category === '대회' ? 'bg-yellow-100 text-yellow-700' :
+                        selectedPost.category === '훈련' ? 'bg-green-100 text-green-700' :
+                        selectedPost.category === '장비' ? 'bg-orange-100 text-orange-700' :
+                        selectedPost.category === '영양' ? 'bg-red-100 text-red-700' :
+                        selectedPost.category === '부상/재활' ? 'bg-pink-100 text-pink-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {selectedPost.category}
+                      </span>
+                      {selectedPost.isAdmin && (
+                        <span className="ml-2 px-2 py-1 text-xs bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded">
+                          관리자
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setSelectedPost(null)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <i className="fas fa-times text-xl"></i>
+                    </button>
+                  </div>
+                  
+                  <h2 className="text-2xl font-bold mb-4">{selectedPost.title}</h2>
+                  
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b">
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <span className="font-medium text-gray-700">{selectedPost.author}</span>
+                      <span>{formatDate(selectedPost.date)}</span>
+                      {selectedPost.editedAt && (
+                        <span className="text-xs">(수정됨: {formatDate(selectedPost.editedAt)})</span>
+                      )}
+                      <span><i className="fas fa-eye mr-1"></i>{selectedPost.views}</span>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      {!selectedPost.isAdmin && (
+                        <button
+                          onClick={() => handleReportPost(selectedPost.id)}
+                          className="px-3 py-1 text-sm text-orange-600 hover:text-orange-700"
+                        >
+                          <i className="fas fa-flag mr-1"></i>
+                          신고 {selectedPost.reports?.length || 0}/10
+                        </button>
+                      )}
+                      {isAdmin && selectedPost.isBlinded && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`${API_BASE}/posts/${selectedPost.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ isBlinded: false, reports: [], isAdmin: true })
+                              });
+                              
+                              const data = await response.json();
+                              if (data.success) {
+                                alert('블라인드가 해제되었습니다.');
+                                fetchPosts();
+                                setSelectedPost(data.post);
+                              }
+                            } catch (error) {
+                              console.error('Failed to unblind post:', error);
+                            }
+                          }}
+                          className="px-3 py-1 text-sm text-green-600 hover:text-green-700"
+                        >
+                          <i className="fas fa-eye mr-1"></i>블라인드 해제
+                        </button>
+                      )}
+                      {(isAdmin || !selectedPost.isAdmin) && (
+                        <>
+                          <button
+                            onClick={() => handleEditPost(selectedPost.id)}
+                            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                          >
+                            <i className="fas fa-edit mr-1"></i>수정
+                          </button>
+                          <button
+                            onClick={() => handleDeletePost(selectedPost.id)}
+                            className="px-3 py-1 text-sm text-red-600 hover:text-red-700"
+                          >
+                            <i className="fas fa-trash mr-1"></i>삭제
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="prose max-w-none mb-8">
+                    <p className="whitespace-pre-wrap">{selectedPost.content}</p>
+                  </div>
+                  
+                  <div className="flex items-center justify-center mb-8">
+                    <button
+                      onClick={() => handleLike(selectedPost.id)}
+                      className={`px-6 py-3 rounded-lg transition-colors ${
+                        selectedPost.likes?.includes(userId)
+                          ? 'bg-red-500 text-white'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      <i className="fas fa-heart mr-2"></i>
+                      추천 {selectedPost.likes?.length || 0}
+                    </button>
+                  </div>
+                  
+                  {/* 댓글 섹션 */}
+                  <div className="border-t pt-6">
+                    <h3 className="font-bold mb-4">
+                      댓글 {selectedPost.comments?.length || 0}개
+                    </h3>
+                    
+                    {/* 댓글 작성 폼 */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <div className="flex space-x-2 mb-3">
+                        <input
+                          type="text"
+                          placeholder="닉네임 (선택)"
+                          value={newComment.author}
+                          onChange={(e) => setNewComment({...newComment, author: e.target.value})}
+                          className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="flex space-x-2">
+                        <textarea
+                          rows="3"
+                          placeholder="댓글을 입력하세요"
+                          value={newComment.content}
+                          onChange={(e) => setNewComment({...newComment, content: e.target.value})}
+                          className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          onClick={() => handleSubmitComment(selectedPost.id)}
+                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                        >
+                          등록
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* 댓글 목록 */}
+                    <div className="space-y-4">
+                      {selectedPost.comments && selectedPost.comments.map(comment => (
+                        <div key={comment.id} className={`p-4 rounded-lg ${
+                          comment.isBlinded ? 'bg-gray-100' : 'bg-white border'
+                        }`}>
+                          {comment.isBlinded ? (
+                            <p className="blinded">
+                              <i className="fas fa-eye-slash mr-2"></i>
+                              신고가 누적되어 블라인드 처리된 댓글입니다.
+                            </p>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-medium">{comment.author}</span>
+                                  <span className="text-sm text-gray-500">
+                                    {formatDate(comment.date)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => handleReportComment(selectedPost.id, comment.id)}
+                                    className="text-gray-500 hover:text-red-500 text-sm"
+                                  >
+                                    <i className="fas fa-flag mr-1"></i>
+                                    신고 {comment.reports?.length || 0}/10
+                                  </button>
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => handleDeleteComment(selectedPost.id, comment.id)}
+                                      className="text-red-500 hover:text-red-600 text-sm"
+                                    >
+                                      <i className="fas fa-trash"></i>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-gray-800">{comment.content}</p>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {(!selectedPost.comments || selectedPost.comments.length === 0) && (
+                        <p className="text-center text-gray-500 py-8">
+                          첫 댓글을 작성해보세요!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 관리자 로그인 모달 */}
+          {showAdminModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-sm slide-in">
+                <h2 className="text-xl font-bold mb-4">관리자 로그인</h2>
+                <input
+                  type="password"
+                  placeholder="관리자 비밀번호"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                />
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => {
+                      setShowAdminModal(false);
+                      setAdminPassword('');
+                    }}
+                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleAdminLogin}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    로그인
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 앱 렌더링
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<CommunityBeta />);
+  </script>
+</body>
+</html>
