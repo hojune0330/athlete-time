@@ -23,9 +23,40 @@ app.use('/api/*', cors())
 app.use('/static/*', serveStatic({ root: './public' }))
 app.use('/app', serveStatic({ root: './public/static', path: '/app.html' }))
 
+// Serve mobile HTML files directly from dist
+app.get('/index-mobile.html', async (c) => {
+  const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading...</title>
+</head>
+<body>
+  <script>window.location.href = '/index-mobile.html';</script>
+</body>
+</html>`
+  return c.html(html)
+})
+
+app.get('/community-mobile.html', async (c) => {
+  const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading...</title>
+</head>
+<body>
+  <script>window.location.href = '/community-mobile.html';</script>
+</body>
+</html>`
+  return c.html(html)
+})
+
 // Community page route
 app.get('/community', (c) => {
-  return c.html(require('fs').readFileSync('./community.html', 'utf-8'))
+  return c.redirect('/community-mobile.html')
 })
 
 // Use JSX renderer for HTML pages
@@ -63,8 +94,13 @@ app.route('/api/community', communityApi)
 // app.route('/api/schedules', schedulesRoutes)  
 // app.route('/api/results', resultsRoutes)
 
-// Main landing page with interactive React app
+// Main landing page - redirect to mobile version
 app.get('/', (c) => {
+  return c.redirect('/index-mobile.html')
+})
+
+// Original desktop version (kept as fallback)
+app.get('/desktop', (c) => {
   // Fallback HTML with React mounting point
   return c.html(`
     <!DOCTYPE html>
