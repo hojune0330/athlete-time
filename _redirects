@@ -1,0 +1,4 @@
+# Redirects for cleaner URLs
+/index-mobile /index-mobile.html 200
+/community-mobile /community-mobile.html 200
+/community /community-mobile.html 200
